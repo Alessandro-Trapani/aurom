@@ -1,0 +1,515 @@
+/* AudioPlayer.css - Black & Minimal Style */
+
+/* --- Color Palette Variables (Mirroring DiceRoller.css) --- */
+:root {
+    /* Blacks & Grays */
+    --deep-black: #0D0D0D;       /* Main background */
+    --modal-bg: #1A1A1A;         /* Modal and main containers */
+    --section-bg: #2B2B2B;       /* Inner sections/cards */
+    --hover-bg: #3A3A3A;         /* Subtle hover/active background */
+
+    /* Text & Borders */
+    --light-text: #E0E0E0;       /* General text color */
+    --white-text: #FFFFFF;       /* Pure white for strong contrast */
+    --border-color: #555555;     /* Thin, subtle borders */
+    --disabled-color: #4A4A4A;   /* For disabled elements */
+
+    /* Accent Colors (for play/delete/link, inspired by primary/danger from DiceRoller.css context) */
+    --accent-primary: #007bff; /* A blue, adjust if you have a specific accent color in DiceRoller's full context */
+    --accent-danger: #dc3545;  /* A red */
+    --accent-link: #88aaff;    /* A softer blue for links */
+    --accent-playing: #28a745; /* A green for playing state, matching standard play button */
+}
+
+/* --- General Styles (App-wide, if not already in a global CSS) --- */
+/* Assuming body styles are handled by a global CSS like DiceRoller.css or index.css */
+body {
+    font-family: "Faculty Glyphic", sans-serif; /* Consistent font */
+    color: var(--light-text);
+}
+
+/* --- Floating Action Button (FAB) --- */
+.audio-fab {
+    position: fixed;
+    bottom: 120px; /* Higher position to avoid dice roller FAB */
+    right: 20px; /* Consistent with dice roller FAB on the right */
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 1000;
+    width: 90px; /* Consistent size with d20-fab */
+    height: 90px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.2s ease-in-out;
+    overflow: hidden; /* Important for clean scaling */
+}
+
+.audio-fab:hover {
+    transform: scale(1.05); /* Consistent hover effect */
+}
+
+.audio-fab img {
+    width: 80%; /* Consistent size with d20-fab .dice-image */
+    height: 80%;
+    object-fit: contain;
+    filter: brightness(1.1); /* Consistent brightness filter */
+}
+
+/* --- Overlay for Modal --- */
+.audio-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85); /* Consistent opaque black overlay */
+    display: flex;
+    justify-content: center;
+    align-items: center; /* Center vertically to match DiceRoller's modal */
+    z-index: 1001;
+    animation: fadeIn 0.3s ease-out; /* Consistent fade-in */
+}
+
+/* --- Audio Player Modal --- */
+.audio-modal {
+    background-color: var(--modal-bg);
+    border-radius: 15px; /* Consistent border-radius */
+    padding: 20px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7); /* Consistent shadow */
+    border: 2px dotted var(--border-color); /* Consistent border */
+    max-width: 95%; /* Increased max-width to make it wider */
+    width: 650px; /* Increased width to make it wider */
+    display: flex;
+    flex-direction: column;
+    gap: 18px; /* Consistent gap */
+    animation: slideInFromTop 0.3s ease-out; /* Consistent slide-in */
+    position: relative;
+    overflow: hidden;
+    max-height: 90vh; /* Prevent modal from exceeding screen height */
+}
+
+/* Animations for modal entry (re-using from DiceRoller.css) */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideInFromTop {
+    from { transform: translateY(-30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* --- Input Group for adding videos --- */
+.input-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    background-color: var(--section-bg); /* Consistent section background */
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.3); /* Consistent inset shadow */
+}
+
+.input-group input[type="text"] {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid var(--border-color); /* Consistent border */
+    border-radius: 6px; /* Consistent border-radius */
+    background-color: var(--modal-bg); /* Slightly darker background for input */
+    color: var(--light-text);
+    font-size: 1em;
+    outline: none;
+    font-family: "Faculty Glyphic", sans-serif; /* Consistent font */
+}
+
+.input-group input[type="text"]::placeholder {
+    color: #aaa;
+}
+
+.input-group .add-button {
+    padding: 10px 15px;
+    background-color: var(--accent-primary); /* Use accent color for add button */
+    color: var(--white-text);
+    border: 1px solid var(--accent-primary); /* Match border to background */
+    border-radius: 6px; /* Consistent border-radius */
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: bold;
+    font-family: "Faculty Glyphic", sans-serif; /* Consistent font */
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.input-group .add-button:hover {
+    background-color: #0056b3; /* Darker accent on hover */
+    border-color: #0056b3;
+}
+
+/* --- No audio message --- */
+.no-audio-text {
+    color: var(--light-text); /* Consistent text color */
+    text-align: center;
+    padding: 20px;
+    font-style: italic;
+    opacity: 0.8;
+}
+
+/* --- Playlist Container --- */
+.playlist-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    
+ 
+
+}
+
+.playlist-container h3 {
+    color: var(--white-text); /* Consistent heading color */
+    margin-bottom: 5px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+    letter-spacing: 0.05em;
+}
+
+.playlist-scroll {
+    max-height: 350px;
+    overflow-y: auto;
+    padding-right: 8px; /* Space for scrollbar */
+    background-color: var(--section-bg); /* Consistent background */
+    border-radius: 8px;
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.3);
+    padding: 10px; /* Padding inside scroll area */
+    overflow-x: hidden;
+}
+
+/* Custom scrollbar for Webkit browsers (consistent with minimal style) */
+.playlist-scroll::-webkit-scrollbar {
+    width: 6px; /* Thinner scrollbar */
+}
+
+.playlist-scroll::-webkit-scrollbar-track {
+    background: var(--modal-bg); /* Darker track */
+    border-radius: 10px;
+}
+
+.playlist-scroll::-webkit-scrollbar-thumb {
+    background: var(--border-color); /* Subtle thumb color */
+    border-radius: 10px;
+}
+
+.playlist-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--hover-bg); /* Darker thumb on hover */
+}
+
+/* --- Individual Audio Item --- */
+.audio-item {
+    background-color: var(--modal-bg); /* Darker background for individual items */
+    padding: 6px 15px; /* Made thinner: reduced vertical padding */
+    border-radius: 8px;
+    margin-bottom: 8px; /* Slightly less margin */
+    display: flex;
+    flex-direction: column;
+    gap: 6px; /* Reduced gap inside the item as well */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    border: 1px solid transparent; /* Default transparent border */
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.audio-item:last-child {
+    margin-bottom: 0; /* No margin at the bottom of the last item */
+}
+
+.audio-item.playing {
+    background-color: #2b3a2f; /* A slightly greener/darker tone when playing */
+    border-color: var(--accent-playing); /* Green border for playing */
+}
+
+.audio-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.audio-info .title-input {
+    flex-grow: 1;
+    background: none;
+    border: none;
+    color: var(--white-text); /* White text for titles */
+    font-size: 1.1em;
+    font-weight: bold;
+    padding: 2px 0; /* Made thinner: reduced vertical padding */
+    outline: none;
+    cursor: text;
+    font-family: "Faculty Glyphic", sans-serif; /* Consistent font */
+}
+
+.audio-info .title-input:focus {
+    background-color: var(--hover-bg); /* Highlight background on focus */
+    border-radius: 3px;
+    padding: 5px;
+}
+
+.audio-link {
+    color: var(--accent-link); /* Consistent link color */
+    text-decoration: none;
+    font-size: 0.9em;
+    white-space: nowrap;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.audio-link:hover {
+    text-decoration: underline;
+    opacity: 1;
+}
+
+/* --- Audio Controls --- */
+.audio-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    /* Changed gap to 5px to bring buttons closer */
+    gap: 5px; /* Reduced gap between controls */
+}
+
+.volume-slider-container,
+.progress-slider-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-grow: 1;
+}
+
+.volume-value {
+    color: var(--light-text); /* Consistent text color */
+    font-size: 0.9em;
+    min-width: 40px;
+    text-align: right;
+}
+
+.volume-slider,
+.progress-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px; /* Thinner sliders */
+    background: var(--disabled-color); /* Darker track */
+    border-radius: 3px; /* Less rounded track */
+    outline: none;
+    transition: background-color 0.2s;
+}
+
+.volume-slider::-webkit-slider-thumb,
+.progress-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px; /* Slightly smaller thumb */
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-primary); /* Consistent accent color for thumb */
+    cursor: pointer;
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.volume-slider::-webkit-slider-thumb:hover,
+.progress-slider::-webkit-slider-thumb:hover {
+    background: #0056b3; /* Darker accent on hover */
+    transform: scale(1.1);
+}
+
+.volume-slider::-moz-range-thumb,
+.progress-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    cursor: pointer;
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.volume-slider::-moz-range-thumb:hover,
+.progress-slider::-moz-range-thumb:hover {
+    background: #0056b3;
+    transform: scale(1.1);
+}
+
+.current-time,
+.duration {
+    color: var(--light-text); /* Consistent text color */
+    font-size: 0.85em;
+    min-width: 45px;
+    text-align: center;
+    opacity: 0.7;
+}
+
+/* --- Play/Pause and Remove Buttons --- */
+.audio-btn {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color); /* Consistent border */
+    border-radius: 6px; /* Consistent border-radius */
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: bold;
+    font-family: "Faculty Glyphic", sans-serif; /* Consistent font */
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    white-space: nowrap;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.play-btn {
+    background-color: var(--accent-playing); /* Green for play */
+    color: var(--white-text);
+    border-color: var(--accent-playing);
+    height: 40px;
+    width: 40px;
+}
+
+.play-btn:hover {
+    background-color: #218838;
+    border-color: #218838;
+}
+
+.delete-btn {
+    background-color: var(--accent-danger); /* Red for delete */
+    color: var(--white-text);
+    border-color: var(--accent-danger);
+    /* Changed padding to make it a square for the trash icon */
+    padding: 8px 10px; /* Adjusted padding for trash icon */
+    /* Removed "Remove" text, now just the trash icon */
+    font-size: 1.2em; /* Larger font size for the icon */
+   height: 40px;
+   width: 40px;
+}
+
+.delete-btn:hover {
+    background-color: #c82333;
+    border-color: #c82333;
+}
+
+/* Hidden YouTube Players (for functionality only) */
+.yt-player {
+    display: none;
+}
+
+/* --- Responsive Adjustments (Mirroring DiceRoller.css) --- */
+@media (max-width: 768px) {
+    .audio-modal {
+        width: 95%;
+        padding: 15px;
+    }
+
+    .audio-fab {
+        width: 55px;
+        height: 55px;
+        bottom: 75px; /* Adjust for smaller screens to stay above dice FAB */
+        right: 15px; /* Adjust position for smaller screens */
+    }
+
+    .input-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .input-group input[type="text"],
+    .input-group .add-button {
+        width: 100%;
+    }
+
+    .audio-item {
+        padding: 8px;
+        gap: 8px;
+    }
+
+    .audio-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+
+    .audio-info .title-input {
+        width: 100%;
+        font-size: 1em;
+    }
+
+    .audio-link {
+        font-size: 0.8em;
+    }
+
+    .audio-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .volume-slider-container,
+    .progress-slider-container {
+        width: 100%;
+        gap: 5px;
+    }
+
+    .volume-value, .current-time, .duration {
+        font-size: 0.8em;
+    }
+
+    .audio-btn {
+        width: 100%;
+        font-size: 0.9em;
+    }
+}
+
+@media (max-width: 480px) {
+    .audio-modal {
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .playlist-scroll {
+        padding: 5px;
+    }
+
+    .audio-fab {
+        width: 50px;
+        height: 50px;
+        bottom: 65px; /* Further adjustment for very small screens */
+        right: 10px;
+    }
+
+    .audio-item {
+        padding: 8px;
+    }
+}
+.audio-btn.drag-handle {
+  /* Visual appearance */
+  background-color: var(--disabled-color); /* Base background from palette */
+  color: var(--white-text);              /* Text color for the symbol */
+  font-size: 1.2em;                      /* Make the symbol a bit larger */
+  padding: 8px 10px;                     /* Adjust padding for the symbol */
+  border-radius: 6px;                    /* Slightly more rounded corners */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Subtle shadow for depth */
+  height: 40px;
+  width: 40px;                     /* Add some spacing from other controls */
+  flex-shrink: 0;                        /* Prevent it from shrinking too much in flex containers */
+
+  /* Interactivity */
+  cursor: grab;                          /* Indicate it's draggable */
+  transition: background-color 0.2s ease, box-shadow 0.2s ease; /* Smooth transitions */
+}
+
+.audio-btn.drag-handle:hover {
+  background-color: var(--border-color); /* Slightly lighter on hover */
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25); /* More pronounced shadow on hover */
+}
+
+.audio-btn.drag-handle:active {
+  background-color: var(--hover-bg);     /* Darker when active/grabbed */
+  cursor: grabbing;                      /* Indicate it's being grabbed */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); /* Smaller shadow when active */
+  /* If you have a general .audio-btn:active transform, you might need to unset it here: */
+  /* transform: none; */
+}

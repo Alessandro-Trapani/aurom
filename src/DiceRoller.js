@@ -1,5 +1,4 @@
-// DiceRoller.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import "./DiceRoller.css";
 
 // Import all dice images directly
@@ -30,6 +29,11 @@ const DiceRoller = () => {
   const [total, setTotal] = useState(null);
   const [modifier, setModifier] = useState(0);
   const [modifierInput, setModifierInput] = useState("");
+  // New state for animation trigger
+  const [animateResult, setAnimateResult] = useState(false);
+
+  // useRef to store the timeout ID
+  const rollTimeoutRef = useRef(null);
 
   const addDice = (sides) => {
     setSelectedDice((prev) => [...prev, { sides }]);
@@ -56,24 +60,67 @@ const DiceRoller = () => {
     setTotal(null);
     setModifier(0);
     setModifierInput("");
+    if (rollTimeoutRef.current) {
+      clearTimeout(rollTimeoutRef.current);
+      rollTimeoutRef.current = null;
+    }
+    setRolling(false);
+    setAnimateResult(false); // Reset animation state on clear
+  };
+
+  // Function to stop the roll and set final values
+  const stopRoll = () => {
+    setRolling(false);
+    const newValues = selectedDice.map(
+      (d) => Math.floor(Math.random() * d.sides) + 1
+    );
+    setFinalValues(newValues);
+    const currentTotal = newValues.reduce((a, b) => a + b, 0);
+    setTotal(currentTotal);
+
+    // Trigger animation only for single d20 critical rolls
+    if (selectedDice.length === 1 && selectedDice[0].sides === 20) {
+      if (currentTotal === 20 || currentTotal === 1) {
+        setAnimateResult(true);
+        // Reset animation state after a short delay to allow re-triggering
+        setTimeout(() => setAnimateResult(false), 500); // Should match CSS animation duration
+      } else {
+        setAnimateResult(false);
+      }
+    } else {
+      setAnimateResult(false);
+    }
   };
 
   const handleRoll = () => {
     if (selectedDice.length === 0) return;
-    setRolling(true);
 
-    const newValues = selectedDice.map(
-      (d) => Math.floor(Math.random() * d.sides) + 1
-    );
-    setTimeout(() => {
-      setRolling(false);
-      setFinalValues(newValues);
-      setTotal(newValues.reduce((a, b) => a + b, 0));
-    }, 1000);
+    // Clear any existing timeout to reset the 1-second timer
+    if (rollTimeoutRef.current) {
+      clearTimeout(rollTimeoutRef.current);
+    }
+
+    setRolling(true);
+    setFinalValues([]); // Clear final values at the start of a roll
+    setAnimateResult(false); // Ensure animation is off when starting a new roll
+
+    // Set a new timeout to stop the roll after 1 second
+    rollTimeoutRef.current = setTimeout(() => {
+      stopRoll();
+      rollTimeoutRef.current = null; // Clear the ref after timeout
+    }, 1000); // 1 second
   };
 
   const closeOverlay = () => {
     setVisible(false);
+    if (rollTimeoutRef.current) {
+      clearTimeout(rollTimeoutRef.current);
+      rollTimeoutRef.current = null;
+    }
+    if (rolling) {
+      stopRoll();
+    }
+    setAnimateResult(false); // Ensure animation is off when closing
   };
 
   const handleModifierInput = (value) => {
@@ -142,16 +189,28 @@ const DiceRoller = () => {
               <button onClick={clearDice}>Clear All</button>
             </div>
             {(() => {
-              var rollColor = "white";
-              if (total == 1 && selectedDice.length == 20) {
-                rollColor = "red";
-              } else if (total == 20 && selectedDice.length == 20) {
-                rollColor = "gold";
+              let rollColorClass = ""; // Use a class for colors
+              let animationClass = ""; // Use a class for animation
+
+              // Check for single d20 criticals
+              if (selectedDice.length === 1 && selectedDice[0].sides === 20) {
+                if (total === 20) {
+                  // Check 'total' for the actual die result before modifier
+                  rollColorClass = "gold-roll";
+                  if (animateResult) animationClass = "grow-animation";
+                } else if (total === 1) {
+                  // Check 'total' for the actual die result before modifier
+                  rollColorClass = "red-roll";
+                  if (animateResult) animationClass = "grow-animation";
+                }
               }
+
               return (
                 <h3 className="total-display">
                   Total: {total == null ? 0 : total} + {modifier} ={" "}
-                  <span style={{ color: rollColor }}>{finalTotal}</span>
+                  <span className={`${rollColorClass} ${animationClass}`}>
+                    {finalTotal}
+                  </span>
                 </h3>
               );
             })()}
@@ -183,25 +242,23 @@ const RollingDie = ({ sides, rolling, finalValue, diceImageMap }) => {
   const [value, setValue] = useState("?");
 
   useEffect(() => {
-    if (!rolling) return;
-
-    const interval = setInterval(() => {
-      setValue(Math.floor(Math.random() * sides) + 1);
-    }, 75);
-
-    const timeout = setTimeout(() => {
-      clearInterval(interval);
-    }, 1000);
+    let interval;
+    if (rolling) {
+      interval = setInterval(() => {
+        setValue(Math.floor(Math.random() * sides) + 1);
+      }, 75);
+    } else {
+      if (finalValue !== undefined) {
+        setValue(finalValue);
+      } else {
+        setValue("?");
+      }
+    }
 
     return () => {
       clearInterval(interval);
-      clearTimeout(timeout);
     };
-  }, [rolling, sides]);
-
-  useEffect(() => {
-    if (!rolling && finalValue) setValue(finalValue);
-  }, [rolling, finalValue]);
+  }, [rolling, sides, finalValue]);
 
   return (
     <div className="dice-wrapper">

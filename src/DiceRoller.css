@@ -165,7 +165,7 @@ body {
 .dice-wrapper.clickable:hover {
     transform: translateY(-2px); /* Subtle lift on hover */
     border-color: var(--light-text); /* Border highlights on hover */
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+  
 }
 
 .dice-wrapper .dice-image {
@@ -186,7 +186,7 @@ body {
 
 /* --- Rolling Animation --- */
 .dice-image.spin {
-    animation: spinDice 0.4s infinite linear; /* Slightly faster spin */
+    animation: spinDice 1s infinite linear; /* Slightly faster spin */
 }
 
 @keyframes spinDice {
@@ -319,4 +319,31 @@ body {
     .total-display {
         font-size: 1.5rem;
     }
+}
+
+/* Colors for critical rolls */
+.gold-roll {
+  color: gold;
+}
+
+.red-roll {
+  color: red;
+}
+
+/* Keyframes for the grow animation */
+@keyframes growShrink {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2); /* Grows to 120% of its size */
+  }
+  100% {
+    transform: scale(1); /* Shrinks back to original size */
+  }
+}
+
+/* Class to apply the animation */
+.grow-animation {
+  animation: growShrink 0.5s ease-in-out; /* 0.5s duration, ease-in-out timing */
 }
