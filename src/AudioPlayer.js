@@ -2,6 +2,18 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import "./AudioPlayer.css";
 import guitar from "./assets/guitar.png";
 
+// Import sound files
+import crowSound from "./assets/sounds/Crow.mp3";
+import footstepsSound from "./assets/sounds/Footsteps.mp3";
+import thunderSound from "./assets/sounds/Thunder.mp3";
+import fireSound from "./assets/sounds/Fire.mp3";
+import swordSound from "./assets/sounds/Sword.mp3";
+import magicSound from "./assets/sounds/Magic.mp3";
+import doorSound from "./assets/sounds/Door.mp3";
+import waterSound from "./assets/sounds/Water.mp3";
+import windSound from "./assets/sounds/Wind.mp3";
+import bellSound from "./assets/sounds/Bell.mp3";
+
 // Import dnd-kit components
 import {
   DndContext,
@@ -29,21 +41,76 @@ const LOCAL_STORAGE_KEY = "audioPlayerState";
 
 // Sound effects data
 const SOUND_EFFECTS = [
-  { id: "crow", name: "Crow", emoji: "🦅", description: "Crow cawing" },
+  {
+    id: "crow",
+    name: "Crow",
+    emoji: "🦅",
+    description: "Crow cawing",
+    soundFile: crowSound,
+  },
   {
     id: "footsteps",
     name: "Footsteps",
     emoji: "👣",
     description: "Walking footsteps",
+    soundFile: footstepsSound,
   },
-  { id: "thunder", name: "Thunder", emoji: "⚡", description: "Thunder crash" },
-  { id: "fire", name: "Fire", emoji: "🔥", description: "Crackling fire" },
-  { id: "sword", name: "Sword", emoji: "⚔️", description: "Sword clash" },
-  { id: "magic", name: "Magic", emoji: "✨", description: "Magic spell" },
-  { id: "door", name: "Door", emoji: "🚪", description: "Door creak" },
-  { id: "water", name: "Water", emoji: "💧", description: "Water splash" },
-  { id: "wind", name: "Wind", emoji: "💨", description: "Howling wind" },
-  { id: "bell", name: "Bell", emoji: "🔔", description: "Bell toll" },
+  {
+    id: "thunder",
+    name: "Thunder",
+    emoji: "⚡",
+    description: "Thunder crash",
+    soundFile: thunderSound,
+  },
+  {
+    id: "fire",
+    name: "Fire",
+    emoji: "🔥",
+    description: "Crackling fire",
+    soundFile: fireSound,
+  },
+  {
+    id: "sword",
+    name: "Sword",
+    emoji: "⚔️",
+    description: "Sword clash",
+    soundFile: swordSound,
+  },
+  {
+    id: "magic",
+    name: "Magic",
+    emoji: "✨",
+    description: "Magic spell",
+    soundFile: magicSound,
+  },
+  {
+    id: "door",
+    name: "Door",
+    emoji: "🚪",
+    description: "Door creak",
+    soundFile: doorSound,
+  },
+  {
+    id: "water",
+    name: "Water",
+    emoji: "💧",
+    description: "Water splash",
+    soundFile: waterSound,
+  },
+  {
+    id: "wind",
+    name: "Wind",
+    emoji: "💨",
+    description: "Howling wind",
+    soundFile: windSound,
+  },
+  {
+    id: "bell",
+    name: "Bell",
+    emoji: "🔔",
+    description: "Bell toll",
+    soundFile: bellSound,
+  },
 ];
 
 // Function to generate a random dark color
@@ -233,34 +300,17 @@ const AudioPlayer = () => {
   const [playerElements, setPlayerElements] = useState(
     initialLoad.videos.map((v) => v.id)
   );
-  const [customSounds, setCustomSounds] = useState({});
-  const [soundEffectVolume, setSoundEffectVolume] = useState(50); // Volume for sound effects (0-100)
-  const [currentlyPlayingSound, setCurrentlyPlayingSound] = useState(null); // Track currently playing sound
-  const soundEffectAudio = useRef(null); // Reference to current sound effect audio
+  const [soundEffectVolume, setSoundEffectVolume] = useState(50);
+  const [currentlyPlayingSound, setCurrentlyPlayingSound] = useState(null);
+  const soundEffectAudio = useRef(null);
 
-  // Load custom sounds from localStorage
+  // Load sound effect volume from localStorage
   useEffect(() => {
-    const savedCustomSounds = localStorage.getItem("customSoundEffects");
     const savedVolume = localStorage.getItem("soundEffectVolume");
-    if (savedCustomSounds) {
-      try {
-        setCustomSounds(JSON.parse(savedCustomSounds));
-      } catch (error) {
-        console.error("Error loading custom sounds:", error);
-      }
-    }
     if (savedVolume) {
       setSoundEffectVolume(parseInt(savedVolume));
     }
   }, []);
-
-  // Save custom sounds to localStorage
-  const saveCustomSound = (effectId, audioBlob) => {
-    const url = URL.createObjectURL(audioBlob);
-    const newCustomSounds = { ...customSounds, [effectId]: url };
-    setCustomSounds(newCustomSounds);
-    localStorage.setItem("customSoundEffects", JSON.stringify(newCustomSounds));
-  };
 
   // Save volume to localStorage
   useEffect(() => {
@@ -681,70 +731,19 @@ const AudioPlayer = () => {
     // Stop any currently playing sound effect
     stopSoundEffect();
 
-    // Priority order: Custom sounds > Local files > Online files > Generated sounds
+    // Find the sound effect in our imported sounds
+    const soundEffect = SOUND_EFFECTS.find((effect) => effect.id === effectId);
 
-    // Check for custom sound first
-    if (customSounds[effectId]) {
-      const audio = new Audio(customSounds[effectId]);
+    if (soundEffect && soundEffect.soundFile) {
+      // Use the imported sound file
+      const audio = new Audio(soundEffect.soundFile);
       audio.volume = soundEffectVolume / 100; // Convert percentage to 0-1 range
       soundEffectAudio.current = audio;
       setCurrentlyPlayingSound(effectId);
 
       audio.play().catch((error) => {
-        console.log("Custom sound failed, trying fallback:", error);
-        playFallbackSound(effectId);
-      });
-
-      // Clear the currently playing sound when it ends
-      audio.onended = () => {
-        setCurrentlyPlayingSound(null);
-        soundEffectAudio.current = null;
-      };
-      return;
-    }
-
-    // Map effect IDs to sound file paths
-    const soundFiles = {
-      crow: "/sounds/crow.mp3",
-      footsteps: "/sounds/footsteps.mp3",
-      thunder: "/sounds/thunder.mp3",
-      fire: "/sounds/fire.mp3",
-      sword: "/sounds/sword.mp3",
-      magic: "/sounds/magic.mp3",
-      door: "/sounds/door.mp3",
-      water: "/sounds/water.mp3",
-      wind: "/sounds/wind.mp3",
-      bell: "/sounds/bell.mp3",
-    };
-
-    // Alternative: Use online sound effect URLs
-    const onlineSoundFiles = {
-      crow: "https://www.soundjay.com/misc/sounds/crow-1.mp3",
-      footsteps: "https://www.soundjay.com/misc/sounds/footsteps-1.mp3",
-      thunder: "https://www.soundjay.com/misc/sounds/thunder-1.mp3",
-      fire: "https://www.soundjay.com/misc/sounds/fire-1.mp3",
-      sword: "https://www.soundjay.com/misc/sounds/sword-1.mp3",
-      magic: "https://www.soundjay.com/misc/sounds/magic-1.mp3",
-      door: "https://www.soundjay.com/misc/sounds/door-1.mp3",
-      water: "https://www.soundjay.com/misc/sounds/water-1.mp3",
-      wind: "https://www.soundjay.com/misc/sounds/wind-1.mp3",
-      bell: "https://www.soundjay.com/misc/sounds/bell-1.mp3",
-    };
-
-    // Try local files first, then online files, then generated sounds
-    const soundFile = soundFiles[effectId] || onlineSoundFiles[effectId];
-
-    if (soundFile) {
-      const audio = new Audio();
-      audio.src = soundFile;
-      audio.volume = soundEffectVolume / 100; // Convert percentage to 0-1 range
-      soundEffectAudio.current = audio;
-      setCurrentlyPlayingSound(effectId);
-
-      // Try to play the sound file
-      audio.play().catch((error) => {
-        console.log("Sound file not found, using generated sound:", error);
-        // Fallback to generated sound if file doesn't exist
+        console.log("Imported sound failed, trying generated sound:", error);
+        // Fallback to generated sound if imported sound fails
         playGeneratedSound(effectId);
       });
 
@@ -754,15 +753,9 @@ const AudioPlayer = () => {
         soundEffectAudio.current = null;
       };
     } else {
-      // Fallback to generated sound
+      // Fallback to generated sound if no imported sound found
       playGeneratedSound(effectId);
     }
-  };
-
-  // Fallback function for generated sounds
-  const playFallbackSound = (effectId) => {
-    // Try local/online files, then generated sounds
-    playSoundEffect(effectId);
   };
 
   // Generated sound effects using Web Audio API
