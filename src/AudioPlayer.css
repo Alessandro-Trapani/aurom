@@ -65,30 +65,31 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.85); /* Consistent opaque black overlay */
+    background-color: rgba(0, 0, 0, 0.85);
     display: flex;
     justify-content: center;
-    align-items: center; /* Center vertically to match DiceRoller's modal */
+    align-items: center;
     z-index: 1001;
-    animation: fadeIn 0.3s ease-out; /* Consistent fade-in */
+    animation: fadeIn 0.3s ease-out;
+    gap: 20px; /* Space between sound effects panel and modal */
 }
 
 /* --- Audio Player Modal --- */
 .audio-modal {
     background-color: var(--modal-bg);
-    border-radius: 15px; /* Consistent border-radius */
+    border-radius: 15px;
     padding: 20px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7); /* Consistent shadow */
-    border: 2px dotted var(--border-color); /* Consistent border */
-    max-width: 95%; /* Increased max-width to make it wider */
-    width: 650px; /* Increased width to make it wider */
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7);
+    border: 2px dotted var(--border-color);
+    max-width: 95%;
+    width: 650px;
     display: flex;
     flex-direction: column;
-    gap: 18px; /* Consistent gap */
-    animation: slideInFromTop 0.3s ease-out; /* Consistent slide-in */
+    gap: 18px;
+    animation: slideInFromTop 0.3s ease-out;
     position: relative;
     overflow: hidden;
-    max-height: 90vh; /* Prevent modal from exceeding screen height */
+    max-height: 90vh;
 }
 
 /* Animations for modal entry (re-using from DiceRoller.css) */
@@ -208,25 +209,96 @@ body {
 
 /* --- Individual Audio Item --- */
 .audio-item {
-    background-color: var(--modal-bg); /* Darker background for individual items */
-    padding: 6px 15px; /* Made thinner: reduced vertical padding */
+    background-color: var(--section-bg); /* This will be overridden by inline styles */
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    margin-bottom: 8px; /* Slightly less margin */
+    padding: 12px;
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 6px; /* Reduced gap inside the item as well */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-    border: 1px solid transparent; /* Default transparent border */
-    transition: background-color 0.2s ease, border-color 0.2s ease;
+    gap: 8px;
 }
 
 .audio-item:last-child {
-    margin-bottom: 0; /* No margin at the bottom of the last item */
+    margin-bottom: 0;
 }
 
 .audio-item.playing {
-    background-color: #2b3a2f; /* A slightly greener/darker tone when playing */
-    border-color: var(--accent-playing); /* Green border for playing */
+    border-color: var(--accent-playing);
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.3);
+}
+
+/* Ensure text remains readable on custom backgrounds */
+.audio-item .title-input {
+    background-color: rgba(0, 0, 0, 0.3) !important; /* Semi-transparent dark overlay */
+    color: var(--light-text) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 6px 8px;
+    border-radius: 4px;
+}
+
+.audio-item .title-input:focus {
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    border-color: var(--accent-primary);
+    color: var(--white-text) !important;
+}
+
+/* Ensure volume and progress sliders remain visible */
+.audio-item .volume-slider,
+.audio-item .progress-slider {
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+.audio-item .volume-slider::-webkit-slider-thumb,
+.audio-item .progress-slider::-webkit-slider-thumb {
+    background-color: var(--accent-primary);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Ensure buttons remain visible and clickable */
+.audio-item .audio-btn {
+    background-color: #2a2a2a; /* Solid dark background instead of transparent */
+    border: 1px solid #555555;
+    color: var(--light-text);
+}
+
+.audio-item .audio-btn:hover {
+    background-color: #3a3a3a; /* Solid hover background */
+    border-color: #666666;
+}
+
+.audio-item .play-btn {
+    background-color: #1e4d2b; /* Solid dark green background */
+    border-color: var(--accent-playing);
+    color: var(--white-text);
+}
+
+.audio-item .play-btn:hover {
+    background-color: #2a5a38; /* Solid darker green on hover */
+}
+
+.audio-item .delete-btn {
+    background-color: #4d1e1e; /* Solid dark red background */
+    border-color: var(--accent-danger);
+    color: var(--white-text);
+}
+
+.audio-item .delete-btn:hover {
+    background-color: #5a2a2a; /* Solid darker red on hover */
+}
+
+.audio-item .drag-handle {
+    background-color: #2a2a2a; /* Solid dark background for drag handle */
+    border-color: #555555;
+    color: var(--light-text);
+}
+
+.audio-item .drag-handle:hover {
+    background-color: #3a3a3a; /* Solid hover background */
+    border-color: #666666;
 }
 
 .audio-info {
@@ -512,4 +584,237 @@ body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); /* Smaller shadow when active */
   /* If you have a general .audio-btn:active transform, you might need to unset it here: */
   /* transform: none; */
+}
+
+/* --- Sound Effects Panel --- */
+.sound-effects-panel {
+    position: relative; /* Change from absolute to relative */
+    width: 250px;
+    background-color: var(--modal-bg);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7);
+    border: 2px dotted var(--border-color);
+    animation: slideInFromLeft 0.3s ease-out;
+    z-index: 1002;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.sound-effects-panel h3 {
+    color: var(--white-text);
+    margin-bottom: 15px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+    letter-spacing: 0.05em;
+}
+
+/* Volume Control */
+.sound-effects-volume {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: var(--section-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.sound-effects-volume label {
+    display: block;
+    color: var(--light-text);
+    font-size: 0.9em;
+    margin-bottom: 8px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.sound-effects-volume .volume-slider {
+    width: 100%;
+    height: 6px;
+    background: var(--disabled-color);
+    border-radius: 3px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.sound-effects-volume .volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    cursor: pointer;
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.sound-effects-volume .volume-slider::-webkit-slider-thumb:hover {
+    background: #0056b3;
+    transform: scale(1.1);
+}
+
+.sound-effects-volume .volume-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    cursor: pointer;
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.sound-effects-volume .volume-slider::-moz-range-thumb:hover {
+    background: #0056b3;
+    transform: scale(1.1);
+}
+
+/* Stop Button */
+.sound-effects-stop {
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.stop-sound-btn {
+    background-color: var(--accent-danger);
+    color: var(--white-text);
+    border: 1px solid var(--accent-danger);
+    border-radius: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: bold;
+    font-family: "Faculty Glyphic", sans-serif;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.stop-sound-btn:hover {
+    background-color: #c82333;
+    border-color: #c82333;
+}
+
+.sound-effects-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.sound-effect-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 8px;
+    background-color: var(--section-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--light-text);
+    font-family: "Faculty Glyphic", sans-serif;
+    font-size: 0.9em;
+    min-height: 60px;
+}
+
+.sound-effect-btn:hover {
+    background-color: var(--hover-bg);
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sound-effect-btn.playing {
+    background-color: rgba(40, 167, 69, 0.2);
+    border-color: var(--accent-playing);
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.3);
+}
+
+.sound-effect-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.sound-effect-emoji {
+    font-size: 1.5em;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.sound-effect-name {
+    font-size: 0.8em;
+    text-align: center;
+    font-weight: bold;
+}
+
+/* Animation for sound effects panel */
+@keyframes slideInFromLeft {
+    from { transform: translateX(-30px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Custom scrollbar for sound effects grid */
+.sound-effects-grid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sound-effects-grid::-webkit-scrollbar-track {
+    background: var(--modal-bg);
+    border-radius: 10px;
+}
+
+.sound-effects-grid::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+
+.sound-effects-grid::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-primary);
+}
+
+/* Responsive adjustments for sound effects panel */
+@media (max-width: 1200px) {
+    .audio-overlay {
+        flex-direction: column; /* Stack vertically on smaller screens */
+        gap: 15px;
+    }
+    
+    .sound-effects-panel {
+        width: 100%;
+        max-width: 650px;
+        max-height: none;
+        animation: slideInFromTop 0.3s ease-out;
+    }
+    
+    .sound-effects-grid {
+        grid-template-columns: repeat(3, 1fr);
+        max-height: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .audio-overlay {
+        padding: 10px;
+        gap: 10px;
+    }
+    
+    .sound-effects-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .sound-effect-btn {
+        min-height: 50px;
+        padding: 8px 6px;
+    }
+    
+    .sound-effect-emoji {
+        font-size: 1.2em;
+    }
+    
+    .sound-effect-name {
+        font-size: 0.7em;
+    }
 }

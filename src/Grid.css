@@ -193,6 +193,9 @@
   width: 100%;
   height: 100%;
   background-color: var(--deep-black);
+  /* Ensure stable positioning during drag operations */
+  transform: translateZ(0);
+  will-change: auto;
 }
 
 /* --- Grid Squares --- */
@@ -211,7 +214,7 @@
   background-color: var(--measurement-point);
   border: 2px solid var(--measurement-point);
   box-shadow: 0 0 10px var(--measurement-point);
-  z-index: 10;
+  z-index: 5;
 }
 
 /* --- Character Tokens --- */
@@ -219,17 +222,14 @@
 
 /* --- Drag Overlay --- */
 .dragging-overlay {
-  border: 2px solid var(--accent-color);
-  border-radius: 8px;
-  background-color: var(--character-bg);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
   pointer-events: none;
-  z-index: 9999;
+  z-index: 10000;
+  position: fixed;
 }
 
 /* Character image and placeholder styles moved to DraggableCharacter.css */
@@ -718,6 +718,465 @@
 }
 
 .left-letter {
-  background-color: rgba(26, 26, 26, 0.8);
-  border-right: 1px solid var(--border-color);
+  position: absolute;
+  left: 5px;
+  color: var(--light-text);
+  font-size: 0.8rem;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* --- Custom Stats Styles --- */
+.custom-stats-button {
+  background-color: var(--section-bg);
+  border: 2px solid var(--border-color);
+  border-radius: 5px;
+  padding: 8px 15px;
+  color: var(--white-text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+
+.custom-stats-button:hover {
+  background-color: var(--hover-bg);
+  border-color: var(--accent-color);
+  transform: translateY(-1px);
+}
+
+.custom-stats-display {
+  margin-top: 10px;
+}
+
+.custom-stat-item {
+  background-color: var(--section-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  color: var(--light-text);
+  font-size: 0.9rem;
+}
+
+.custom-stat-item strong {
+  color: var(--accent-color);
+  margin-right: 8px;
+}
+
+.custom-stat-header {
+  margin-bottom: 8px;
+}
+
+.custom-stat-header strong {
+  color: var(--accent-color);
+  font-size: 0.9rem;
+}
+
+/* --- Inline Custom Stat Editing Styles --- */
+.custom-stat-numeric {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.custom-numeric-button {
+  background-color: var(--section-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 3px 6px;
+  color: var(--white-text);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  font-size: 0.7rem;
+  min-width: 28px;
+  text-align: center;
+}
+
+.custom-numeric-button:hover {
+  background-color: var(--hover-bg);
+  border-color: var(--accent-color);
+}
+
+.custom-numeric-value {
+  background-color: var(--modal-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 3px 8px;
+  color: var(--accent-color);
+  font-weight: bold;
+  min-width: 35px;
+  text-align: center;
+  font-size: 0.85rem;
+  margin: 0 2px;
+}
+
+.custom-stat-checkbox {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.custom-checkbox-input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-color);
+  cursor: pointer;
+}
+
+.custom-stat-text {
+  width: 100%;
+}
+
+.custom-text-input {
+  width: 100%;
+  background-color: var(--modal-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  padding: 8px;
+  color: var(--white-text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  resize: vertical;
+  min-height: 40px;
+}
+
+.custom-text-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.2);
+}
+
+/* --- Custom Stats Editor Modal --- */
+.custom-stats-editor-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.custom-stats-editor {
+  background-color: var(--modal-bg);
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+.custom-stats-editor-header {
+  background-color: var(--section-bg);
+  border-bottom: 2px solid var(--border-color);
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 8px 8px 0 0;
+}
+
+.custom-stats-editor-header h2 {
+  color: var(--white-text);
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: var(--light-text);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 5px;
+  transition: all 0.2s ease-in-out;
+}
+
+.close-button:hover {
+  background-color: var(--hover-bg);
+  color: var(--white-text);
+}
+
+.custom-stats-editor-content {
+  padding: 20px;
+}
+
+.create-stat-section,
+.existing-stats-section {
+  margin-bottom: 30px;
+}
+
+.create-stat-section h3,
+.existing-stats-section h3 {
+  color: var(--white-text);
+  margin: 0 0 15px 0;
+  font-size: 1.1rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.create-stat-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.stat-name-input,
+.stat-type-select,
+.numeric-input,
+.checkbox-count-input,
+.text-input {
+  background-color: var(--section-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  padding: 10px;
+  color: var(--white-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.stat-name-input:focus,
+.stat-type-select:focus,
+.numeric-input:focus,
+.checkbox-count-input:focus,
+.text-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.2);
+}
+
+.text-input {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.create-stat-button {
+  background-color: var(--success-color);
+  border: 2px solid var(--success-color);
+  border-radius: 5px;
+  padding: 10px 20px;
+  color: var(--white-text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.create-stat-button:hover:not(:disabled) {
+  background-color: #45a049;
+  border-color: #45a049;
+  transform: translateY(-1px);
+}
+
+.create-stat-button:disabled {
+  background-color: var(--border-color);
+  border-color: var(--border-color);
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* --- Existing Stats Styles --- */
+.existing-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.existing-stat-item {
+  background-color: var(--section-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.custom-stat-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.custom-stat-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-stat-button,
+.delete-stat-button,
+.save-stat-button {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  font-size: 0.8rem;
+}
+
+.edit-stat-button {
+  color: var(--accent-color);
+}
+
+.edit-stat-button:hover {
+  background-color: var(--accent-color);
+  color: var(--white-text);
+}
+
+.delete-stat-button {
+  color: #ff6b6b;
+}
+
+.delete-stat-button:hover {
+  background-color: #ff6b6b;
+  color: var(--white-text);
+}
+
+.save-stat-button {
+  color: var(--success-color);
+}
+
+.save-stat-button:hover {
+  background-color: var(--success-color);
+  color: var(--white-text);
+}
+
+.custom-stat-edit {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+/* --- Stat Type Specific Styles --- */
+.numeric-stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.numeric-button {
+  background-color: var(--section-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 5px 10px;
+  color: var(--white-text);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  font-size: 0.8rem;
+  min-width: 35px;
+}
+
+.numeric-button:hover {
+  background-color: var(--hover-bg);
+  border-color: var(--accent-color);
+}
+
+.numeric-value {
+  background-color: var(--modal-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 5px 10px;
+  color: var(--accent-color);
+  font-weight: bold;
+  min-width: 40px;
+  text-align: center;
+}
+
+.checkbox-stat {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.checkbox-input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-color);
+  cursor: pointer;
+}
+
+.text-stat {
+  width: 100%;
+}
+
+.text-stat-input {
+  width: 100%;
+  background-color: var(--modal-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  padding: 10px;
+  color: var(--white-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.text-stat-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.2);
+}
+
+/* --- Responsive Design --- */
+@media (max-width: 768px) {
+  .custom-stats-editor {
+    width: 95%;
+    max-height: 90vh;
+  }
+  
+  .custom-stats-editor-header {
+    padding: 15px;
+  }
+  
+  .custom-stats-editor-content {
+    padding: 15px;
+  }
+  
+  .numeric-stat {
+    justify-content: center;
+  }
+  
+  .checkbox-stat {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .custom-stats-editor-header h2 {
+    font-size: 1.1rem;
+  }
+  
+  .create-stat-form {
+    gap: 10px;
+  }
+  
+  .existing-stat-item {
+    padding: 10px;
+  }
+  
+  .custom-stat-display {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .custom-stat-actions {
+    align-self: flex-end;
+  }
 } 

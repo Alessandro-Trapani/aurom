@@ -18,6 +18,7 @@ import { supabase } from "./supabaseClient";
 import DraggableCharacter from "./DraggableCharacter";
 import CharacterEditor from "./CharacterEditor";
 import "./Grid.css";
+import InitiativeTracker from "./InitiativeTracker";
 
 const Grid = () => {
   // Grid state
@@ -35,20 +36,10 @@ const Grid = () => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [activeCharacter, setActiveCharacter] = useState(null);
   const [isUpdatingHp, setIsUpdatingHp] = useState(false);
-  const [hpAmount, setHpAmount] = useState("1");
+  const [hpAmount, setHpAmount] = useState("");
   const [localHp, setLocalHp] = useState(null);
   const [localStatus, setLocalStatus] = useState(null);
   const hpInputRef = useRef(null);
-
-  // Focus on HP input when character sheet opens
-  useEffect(() => {
-    if (showCharacterSheet && hpInputRef.current) {
-      // Small delay to ensure the modal is fully rendered
-      setTimeout(() => {
-        hpInputRef.current.focus();
-      }, 10);
-    }
-  }, [showCharacterSheet]);
 
   // Spell measurement state
   const [spellShape, setSpellShape] = useState("none"); // none, circle, square, cone, line
@@ -63,6 +54,10 @@ const Grid = () => {
   // Character editor state
   const [showCharacterEditor, setShowCharacterEditor] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState(null);
+
+  // Custom stats state
+  const [customStats, setCustomStats] = useState([]);
+  const [showCustomStatsEditor, setShowCustomStatsEditor] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -135,6 +130,111 @@ const Grid = () => {
     }
   };
 
+  // Load custom stats for a character
+  const loadCustomStats = async (characterId) => {
+    try {
+      const { data, error } = await supabase
+        .from("customstat")
+        .select("*")
+        .eq("id_entity", characterId)
+        .order("id_customstat");
+
+      if (error) {
+        console.error("Error loading custom stats:", error);
+        return;
+      }
+
+      // Migrate old checkbox format to new format
+      const migratedStats = data.map((stat) => {
+        // Check if it's an old format checkbox (just 0s and 1s, no count prefix)
+        if (/^[01]+$/.test(stat.stat) && stat.stat.length <= 10) {
+          const count = stat.stat.length;
+          const newValue = `${count}:${stat.stat}`;
+          console.log(
+            `Migrating checkbox stat from "${stat.stat}" to "${newValue}"`
+          );
+
+          // Update in database
+          updateCustomStat({
+            id_customstat: stat.id_customstat,
+            stat: newValue,
+          });
+
+          return {
+            ...stat,
+            stat: newValue,
+          };
+        }
+        return stat;
+      });
+
+      setCustomStats(migratedStats || []);
+    } catch (error) {
+      console.error("Error loading custom stats:", error);
+    }
+  };
+
+  // Save custom stat to database
+  const saveCustomStat = async (customStat) => {
+    try {
+      const { data, error } = await supabase
+        .from("customstat")
+        .insert([customStat])
+        .select();
+
+      if (error) {
+        console.error("Error saving custom stat:", error);
+        return null;
+      }
+
+      return data[0];
+    } catch (error) {
+      console.error("Error saving custom stat:", error);
+      return null;
+    }
+  };
+
+  // Update custom stat in database
+  const updateCustomStat = async (customStat) => {
+    try {
+      const { data, error } = await supabase
+        .from("customstat")
+        .update(customStat)
+        .eq("id_customstat", customStat.id_customstat)
+        .select();
+
+      if (error) {
+        console.error("Error updating custom stat:", error);
+        return null;
+      }
+
+      return data[0];
+    } catch (error) {
+      console.error("Error updating custom stat:", error);
+      return null;
+    }
+  };
+
+  // Delete custom stat from database
+  const deleteCustomStat = async (customStatId) => {
+    try {
+      const { error } = await supabase
+        .from("customstat")
+        .delete()
+        .eq("id_customstat", customStatId);
+
+      if (error) {
+        console.error("Error deleting custom stat:", error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error deleting custom stat:", error);
+      return false;
+    }
+  };
+
   // Load characters from database
   useEffect(() => {
     loadCharacters();
@@ -171,6 +271,8 @@ const Grid = () => {
     setShowCharacterEditor(true);
     setShowCharacterSheet(false);
   };
+
+  const [initiativeRefresh, setInitiativeRefresh] = useState(0);
 
   const handleSaveCharacter = (savedCharacter) => {
     if (editingCharacter) {
@@ -227,6 +329,7 @@ const Grid = () => {
       console.log("New character with positions:", newCharacter);
       setCharacters((prev) => [...prev, newCharacter]);
     }
+    setInitiativeRefresh((prev) => prev + 1);
   };
 
   // Delete character
@@ -506,6 +609,8 @@ const Grid = () => {
         setSelectedCharacter(character);
         setLocalHp(character.currenthp);
         setShowCharacterSheet(true);
+        // Load custom stats for this character
+        loadCustomStats(character.id_entity);
       }
     }
   };
@@ -859,6 +964,14 @@ const Grid = () => {
 
   // Character Sheet Modal
   const CharacterSheet = () => {
+    // Local state for custom stats to prevent component re-renders
+    const [localCustomStats, setLocalCustomStats] = useState(customStats);
+
+    // Update local stats when customStats changes (when component mounts or stats are loaded)
+    useEffect(() => {
+      setLocalCustomStats(customStats);
+    }, [customStats]);
+
     if (!selectedCharacter) return null;
 
     const handleHpChange = (amount) => {
@@ -888,6 +1001,198 @@ const Grid = () => {
 
     const handleNumberPadClear = () => {
       setHpAmount("");
+    };
+
+    // Custom stats handlers for inline editing
+    const handleCustomStatNumericChange = async (
+      statId,
+      currentValue,
+      change
+    ) => {
+      const newValue = Math.max(0, parseInt(currentValue) + change);
+
+      // Update local state immediately for instant feedback
+      setLocalCustomStats((prev) =>
+        prev.map((stat) =>
+          stat.id_customstat === statId
+            ? { ...stat, stat: newValue.toString() }
+            : stat
+        )
+      );
+
+      // Save to database silently without triggering re-renders
+      try {
+        await updateCustomStat({
+          id_customstat: statId,
+          stat: newValue.toString(),
+        });
+      } catch (error) {
+        console.error("Error updating custom stat:", error);
+        // Revert on error
+        setLocalCustomStats((prev) =>
+          prev.map((stat) =>
+            stat.id_customstat === statId
+              ? { ...stat, stat: currentValue }
+              : stat
+          )
+        );
+      }
+    };
+
+    const handleCustomStatCheckboxToggle = async (
+      statId,
+      currentValue,
+      index
+    ) => {
+      const [count, values] = currentValue.split(":");
+      const checkboxValues = values || "";
+      const newValues = checkboxValues.split("");
+      newValues[index] = newValues[index] === "1" ? "0" : "1";
+      const newStatValue = `${count}:${newValues.join("")}`;
+
+      // Update local state immediately for instant feedback
+      setLocalCustomStats((prev) =>
+        prev.map((stat) =>
+          stat.id_customstat === statId ? { ...stat, stat: newStatValue } : stat
+        )
+      );
+
+      // Save to database silently without triggering re-renders
+      try {
+        await updateCustomStat({
+          id_customstat: statId,
+          stat: newStatValue,
+        });
+      } catch (error) {
+        console.error("Error updating custom stat:", error);
+        // Revert on error
+        setLocalCustomStats((prev) =>
+          prev.map((stat) =>
+            stat.id_customstat === statId
+              ? { ...stat, stat: currentValue }
+              : stat
+          )
+        );
+      }
+    };
+
+    const renderCustomStatValue = (stat) => {
+      // Determine stat type based on content
+      const isNumeric = !isNaN(stat.stat) && stat.stat !== "";
+      const isCheckbox =
+        /^\d+:[01]+$/.test(stat.stat) && stat.stat.length <= 20;
+
+      if (isNumeric) {
+        return (
+          <div className="custom-stat-numeric">
+            <button
+              onClick={() =>
+                handleCustomStatNumericChange(
+                  stat.id_customstat,
+                  stat.stat,
+                  -10
+                )
+              }
+              className="custom-numeric-button"
+            >
+              -10
+            </button>
+            <button
+              onClick={() =>
+                handleCustomStatNumericChange(stat.id_customstat, stat.stat, -5)
+              }
+              className="custom-numeric-button"
+            >
+              -5
+            </button>
+            <button
+              onClick={() =>
+                handleCustomStatNumericChange(stat.id_customstat, stat.stat, -1)
+              }
+              className="custom-numeric-button"
+            >
+              -1
+            </button>
+            <span className="custom-numeric-value">{stat.stat}</span>
+            <button
+              onClick={() =>
+                handleCustomStatNumericChange(stat.id_customstat, stat.stat, 1)
+              }
+              className="custom-numeric-button"
+            >
+              +1
+            </button>
+            <button
+              onClick={() =>
+                handleCustomStatNumericChange(stat.id_customstat, stat.stat, 5)
+              }
+              className="custom-numeric-button"
+            >
+              +5
+            </button>
+            <button
+              onClick={() =>
+                handleCustomStatNumericChange(stat.id_customstat, stat.stat, 10)
+              }
+              className="custom-numeric-button"
+            >
+              +10
+            </button>
+          </div>
+        );
+      } else if (isCheckbox) {
+        const [count, values] = stat.stat.split(":");
+        const checkboxCount = parseInt(count);
+        const checkboxValues = values || "";
+
+        return (
+          <div className="custom-stat-checkbox">
+            {Array.from({ length: checkboxCount }, (_, index) => (
+              <input
+                key={index}
+                type="checkbox"
+                checked={checkboxValues[index] === "1"}
+                onChange={() =>
+                  handleCustomStatCheckboxToggle(
+                    stat.id_customstat,
+                    stat.stat,
+                    index
+                  )
+                }
+                className="custom-checkbox-input"
+              />
+            ))}
+          </div>
+        );
+      } else {
+        return (
+          <div className="custom-stat-text">
+            <textarea
+              value={stat.stat}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                // Update local state immediately for instant feedback
+                setLocalCustomStats((prev) =>
+                  prev.map((s) =>
+                    s.id_customstat === stat.id_customstat
+                      ? { ...s, stat: newValue }
+                      : s
+                  )
+                );
+                // Save to database silently
+                updateCustomStat({
+                  id_customstat: stat.id_customstat,
+                  stat: newValue,
+                }).catch((error) => {
+                  console.error("Error updating custom stat:", error);
+                });
+              }}
+              className="custom-text-input"
+              rows="2"
+            />
+          </div>
+        );
+      }
     };
 
     return (
@@ -1041,6 +1346,7 @@ const Grid = () => {
                       onChange={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
+                        // Update local state immediately without triggering re-renders
                         setHpAmount(e.target.value);
                       }}
                       onClick={(e) => e.stopPropagation()}
@@ -1192,10 +1498,6 @@ const Grid = () => {
                 <strong>Initiative Bonus:</strong>{" "}
                 {selectedCharacter.initiativebonus}
               </p>
-              <p>
-                <strong>Initiative Score:</strong>{" "}
-                {selectedCharacter.initiativescore}
-              </p>
 
               <h3>Ability Scores</h3>
               <div className="ability-scores">
@@ -1218,6 +1520,459 @@ const Grid = () => {
 
               <h3>Notes</h3>
               <p>{selectedCharacter.notes || "No notes available"}</p>
+
+              <h3>Custom Stats</h3>
+              <button
+                onClick={() => setShowCustomStatsEditor(true)}
+                className="custom-stats-button"
+              >
+                ✏️ Manage Custom Stats
+              </button>
+
+              {localCustomStats.length > 0 ? (
+                <div className="custom-stats-display">
+                  {localCustomStats.map((stat) => (
+                    <div key={stat.id_customstat} className="custom-stat-item">
+                      <div className="custom-stat-header">
+                        <strong>{stat.statname}:</strong>
+                      </div>
+                      {renderCustomStatValue(stat)}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>No custom stats defined</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Custom Stats Editor Modal
+  const CustomStatsEditor = () => {
+    const [newStat, setNewStat] = useState({
+      statname: "",
+      stat: "",
+      type: "numeric", // numeric, checkbox, text
+      checkboxCount: 5,
+      numericValue: 0,
+    });
+    const [editingStat, setEditingStat] = useState(null);
+
+    const handleCreateStat = async () => {
+      if (!newStat.statname.trim()) return;
+
+      let statValue = "";
+      switch (newStat.type) {
+        case "numeric":
+          statValue = newStat.numericValue.toString();
+          break;
+        case "checkbox":
+          statValue = `${newStat.checkboxCount}:${"0".repeat(
+            newStat.checkboxCount
+          )}`;
+          break;
+        case "text":
+          statValue = newStat.stat;
+          break;
+        default:
+          statValue = newStat.stat;
+          break;
+      }
+
+      const customStatData = {
+        statname: newStat.statname.trim(),
+        stat: statValue,
+        id_entity: selectedCharacter.id_entity,
+      };
+
+      const savedStat = await saveCustomStat(customStatData);
+      if (savedStat) {
+        setCustomStats((prev) => [...prev, savedStat]);
+        setNewStat({
+          statname: "",
+          stat: "",
+          type: "numeric",
+          checkboxCount: 5,
+          numericValue: 0,
+        });
+      }
+    };
+
+    const handleUpdateStat = async (statId, updates) => {
+      const updatedStat = await updateCustomStat({
+        id_customstat: statId,
+        ...updates,
+      });
+      if (updatedStat) {
+        setCustomStats((prev) =>
+          prev.map((stat) =>
+            stat.id_customstat === statId ? updatedStat : stat
+          )
+        );
+        setEditingStat(null);
+      }
+    };
+
+    const handleDeleteStat = async (statId) => {
+      const success = await deleteCustomStat(statId);
+      if (success) {
+        setCustomStats((prev) =>
+          prev.filter((stat) => stat.id_customstat !== statId)
+        );
+      }
+    };
+
+    const handleNumericChange = async (statId, currentValue, change) => {
+      const newValue = Math.max(0, parseInt(currentValue) + change);
+
+      // Update local state immediately for instant feedback
+      setCustomStats((prev) =>
+        prev.map((stat) =>
+          stat.id_customstat === statId
+            ? { ...stat, stat: newValue.toString() }
+            : stat
+        )
+      );
+
+      // Save to database silently
+      try {
+        await updateCustomStat({
+          id_customstat: statId,
+          stat: newValue.toString(),
+        });
+      } catch (error) {
+        console.error("Error updating custom stat:", error);
+        // Revert on error
+        setCustomStats((prev) =>
+          prev.map((stat) =>
+            stat.id_customstat === statId
+              ? { ...stat, stat: currentValue }
+              : stat
+          )
+        );
+      }
+    };
+
+    const handleCheckboxToggle = async (statId, currentValue, index) => {
+      const [count, values] = currentValue.split(":");
+      const checkboxValues = values || "";
+      const newValues = checkboxValues.split("");
+      newValues[index] = newValues[index] === "1" ? "0" : "1";
+      const newStatValue = `${count}:${newValues.join("")}`;
+
+      // Update local state immediately for instant feedback
+      setCustomStats((prev) =>
+        prev.map((stat) =>
+          stat.id_customstat === statId ? { ...stat, stat: newStatValue } : stat
+        )
+      );
+
+      // Save to database silently without triggering re-renders
+      try {
+        await updateCustomStat({
+          id_customstat: statId,
+          stat: newStatValue,
+        });
+      } catch (error) {
+        console.error("Error updating custom stat:", error);
+        // Revert on error
+        setCustomStats((prev) =>
+          prev.map((stat) =>
+            stat.id_customstat === statId
+              ? { ...stat, stat: currentValue }
+              : stat
+          )
+        );
+      }
+    };
+
+    const renderStatEditor = (stat) => {
+      if (editingStat !== stat.id_customstat) {
+        return (
+          <div className="custom-stat-display">
+            <strong>{stat.statname}:</strong> {stat.stat}
+            <div className="custom-stat-actions">
+              <button
+                onClick={() => setEditingStat(stat.id_customstat)}
+                className="edit-stat-button"
+              >
+                ✏️
+              </button>
+              <button
+                onClick={() => handleDeleteStat(stat.id_customstat)}
+                className="delete-stat-button"
+              >
+                🗑️
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="custom-stat-edit">
+          <input
+            type="text"
+            value={stat.statname}
+            onChange={(e) =>
+              handleUpdateStat(stat.id_customstat, {
+                statname: e.target.value,
+              })
+            }
+            className="stat-name-input"
+          />
+          <button
+            onClick={() => setEditingStat(null)}
+            className="save-stat-button"
+          >
+            ✓
+          </button>
+        </div>
+      );
+    };
+
+    const renderStatValue = (stat) => {
+      // Determine stat type based on content
+      const isNumeric = !isNaN(stat.stat) && stat.stat !== "";
+      const isCheckbox =
+        /^\d+:[01]+$/.test(stat.stat) && stat.stat.length <= 20;
+
+      if (isNumeric) {
+        return (
+          <div className="numeric-stat">
+            <button
+              onClick={() =>
+                handleNumericChange(stat.id_customstat, stat.stat, -10)
+              }
+              className="numeric-button"
+            >
+              -10
+            </button>
+            <button
+              onClick={() =>
+                handleNumericChange(stat.id_customstat, stat.stat, -5)
+              }
+              className="numeric-button"
+            >
+              -5
+            </button>
+            <button
+              onClick={() =>
+                handleNumericChange(stat.id_customstat, stat.stat, -1)
+              }
+              className="numeric-button"
+            >
+              -1
+            </button>
+            <span className="numeric-value">{stat.stat}</span>
+            <button
+              onClick={() =>
+                handleNumericChange(stat.id_customstat, stat.stat, 1)
+              }
+              className="numeric-button"
+            >
+              +1
+            </button>
+            <button
+              onClick={() =>
+                handleNumericChange(stat.id_customstat, stat.stat, 5)
+              }
+              className="numeric-button"
+            >
+              +5
+            </button>
+            <button
+              onClick={() =>
+                handleNumericChange(stat.id_customstat, stat.stat, 10)
+              }
+              className="numeric-button"
+            >
+              +10
+            </button>
+          </div>
+        );
+      } else if (isCheckbox) {
+        const [count, values] = stat.stat.split(":");
+        const checkboxCount = parseInt(count);
+        const checkboxValues = values || "";
+
+        return (
+          <div className="checkbox-stat">
+            {Array.from({ length: checkboxCount }, (_, index) => (
+              <input
+                key={index}
+                type="checkbox"
+                checked={checkboxValues[index] === "1"}
+                onChange={() =>
+                  handleCheckboxToggle(stat.id_customstat, stat.stat, index)
+                }
+                className="checkbox-input"
+              />
+            ))}
+          </div>
+        );
+      } else {
+        return (
+          <div className="text-stat">
+            <textarea
+              value={stat.stat}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                // Update local state immediately for instant feedback
+                setCustomStats((prev) =>
+                  prev.map((s) =>
+                    s.id_customstat === stat.id_customstat
+                      ? { ...s, stat: newValue }
+                      : s
+                  )
+                );
+                // Save to database silently
+                updateCustomStat({
+                  id_customstat: stat.id_customstat,
+                  stat: newValue,
+                }).catch((error) => {
+                  console.error("Error updating custom stat:", error);
+                });
+              }}
+              className="text-stat-input"
+              rows="3"
+            />
+          </div>
+        );
+      }
+    };
+
+    return (
+      <div
+        className="custom-stats-editor-overlay"
+        onClick={() => setShowCustomStatsEditor(false)}
+      >
+        <div
+          className="custom-stats-editor"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="custom-stats-editor-header">
+            <h2>Custom Stats - {selectedCharacter.name}</h2>
+            <button
+              onClick={() => setShowCustomStatsEditor(false)}
+              className="close-button"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="custom-stats-editor-content">
+            {/* Create new stat */}
+            <div className="create-stat-section">
+              <h3>Create New Stat</h3>
+              <div className="create-stat-form">
+                <input
+                  type="text"
+                  placeholder="Stat name"
+                  value={newStat.statname}
+                  onChange={(e) =>
+                    setNewStat((prev) => ({
+                      ...prev,
+                      statname: e.target.value,
+                    }))
+                  }
+                  className="stat-name-input"
+                />
+                <select
+                  value={newStat.type}
+                  onChange={(e) =>
+                    setNewStat((prev) => ({
+                      ...prev,
+                      type: e.target.value,
+                    }))
+                  }
+                  className="stat-type-select"
+                >
+                  <option value="numeric">Numeric</option>
+                  <option value="checkbox">Checkbox</option>
+                  <option value="text">Text</option>
+                </select>
+
+                {newStat.type === "numeric" && (
+                  <input
+                    type="number"
+                    value={newStat.numericValue}
+                    onChange={(e) =>
+                      setNewStat((prev) => ({
+                        ...prev,
+                        numericValue: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    className="numeric-input"
+                    min="0"
+                  />
+                )}
+
+                {newStat.type === "checkbox" && (
+                  <input
+                    type="number"
+                    value={newStat.checkboxCount}
+                    onChange={(e) =>
+                      setNewStat((prev) => ({
+                        ...prev,
+                        checkboxCount: Math.min(
+                          10,
+                          Math.max(1, parseInt(e.target.value) || 5)
+                        ),
+                      }))
+                    }
+                    className="checkbox-count-input"
+                    min="1"
+                    max="10"
+                  />
+                )}
+
+                {newStat.type === "text" && (
+                  <textarea
+                    placeholder="Text content"
+                    value={newStat.stat}
+                    onChange={(e) =>
+                      setNewStat((prev) => ({
+                        ...prev,
+                        stat: e.target.value,
+                      }))
+                    }
+                    className="text-input"
+                    rows="3"
+                  />
+                )}
+
+                <button
+                  onClick={handleCreateStat}
+                  disabled={!newStat.statname.trim()}
+                  className="create-stat-button"
+                >
+                  Create Stat
+                </button>
+              </div>
+            </div>
+
+            {/* Existing stats */}
+            <div className="existing-stats-section">
+              <h3>Existing Stats</h3>
+              {customStats.length > 0 ? (
+                <div className="existing-stats-list">
+                  {customStats.map((stat) => (
+                    <div
+                      key={stat.id_customstat}
+                      className="existing-stat-item"
+                    >
+                      {renderStatEditor(stat)}
+                      {renderStatValue(stat)}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>No custom stats created yet</p>
+              )}
             </div>
           </div>
         </div>
@@ -1226,284 +1981,300 @@ const Grid = () => {
   };
 
   return (
-    <div className="grid-container" onWheel={handleWheel}>
-      {/* Controls */}
-      <div className="grid-controls">
-        <div className="control-group">
-          <label>Grid Size:</label>
-          <input
-            type="number"
-            value={gridSize.width}
-            onChange={(e) =>
-              setGridSize((prev) => ({
-                ...prev,
-                width: parseInt(e.target.value) || 20,
-              }))
-            }
-            min="5"
-            max="100"
-          />
-          <span>×</span>
-          <input
-            type="number"
-            value={gridSize.height}
-            onChange={(e) =>
-              setGridSize((prev) => ({
-                ...prev,
-                height: parseInt(e.target.value) || 15,
-              }))
-            }
-            min="5"
-            max="100"
-          />
-        </div>
-
-        <div className="control-group">
-          <label>Square Size:</label>
-          <input
-            type="number"
-            value={squareSize}
-            onChange={(e) => setSquareSize(parseInt(e.target.value) || 50)}
-            min="20"
-            max="200"
-          />
-          <span>px</span>
-        </div>
-
-        <div className="control-group">
-          <label>Measurement:</label>
-          <select
-            value={measurementUnit}
-            onChange={(e) => setMeasurementUnit(e.target.value)}
-          >
-            <option value="feet">Feet</option>
-            <option value="meters">Meters</option>
-          </select>
-          <input
-            type="number"
-            value={unitSize}
-            onChange={(e) => setUnitSize(parseFloat(e.target.value) || 5)}
-            min="1"
-            max="50"
-          />
-          <span>{measurementUnit === "feet" ? "ft" : "m"}</span>
-        </div>
-
-        <div className="control-group">
-          <button
-            className={`measurement-button ${measurementMode ? "active" : ""}`}
-            onClick={() => {
-              setMeasurementMode(!measurementMode);
-              setMeasurementPoints([]);
-              setSpellOrigin(null);
-              setSpellShape("none");
-            }}
-          >
-            📏 Measure
-          </button>
-          <button
-            onClick={() => {
-              setMeasurementPoints([]);
-              setSpellOrigin(null);
-              setSpellShape("none");
-            }}
-          >
-            Clear
-          </button>
-        </div>
-
-        {/* Character Management */}
-        <div className="control-group">
-          <button
-            onClick={handleCreateCharacter}
-            className="create-character-button"
-          >
-            ➕ Create Character
-          </button>
-        </div>
-
-        {/* Spell Measurement Controls */}
-        {measurementMode && (
-          <>
-            <div className="control-group">
-              <label>Spell Shape:</label>
-              <select
-                value={spellShape}
-                onChange={(e) => setSpellShape(e.target.value)}
-              >
-                <option value="none">None</option>
-                <option value="circle">Circle</option>
-                <option value="square">Square</option>
-                <option value="cone">Cone</option>
-                <option value="line">Line</option>
-              </select>
-            </div>
-
-            <div className="control-group">
-              <label>Range:</label>
-              <input
-                type="number"
-                value={spellRange}
-                onChange={(e) => setSpellRange(parseInt(e.target.value) || 30)}
-                min="5"
-                max="300"
-              />
-              <span>ft</span>
-            </div>
-
-            <div className="control-group">
-              <label>Rotation:</label>
-              <input
-                type="number"
-                value={spellRotation}
-                onChange={(e) =>
-                  setSpellRotation(parseInt(e.target.value) || 0)
-                }
-                min="0"
-                max="359"
-              />
-              <span>°</span>
-            </div>
-
-            <div className="control-group">
-              <small style={{ color: "var(--light-text)" }}>
-                Mouse wheel:{" "}
-                {measurementMode ? "Rotate spell" : "Adjust square size"}
-              </small>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Measurement Display */}
-      {measurementPoints.length === 2 && (
-        <div className="measurement-display">
-          <h3>Distance Measurement</h3>
-          {(() => {
-            const distance = calculateDistance(
-              measurementPoints[0],
-              measurementPoints[1]
-            );
-            return (
-              <div>
-                <p>
-                  <strong>Distance:</strong> {distance.squares} squares
-                </p>
-                <p>
-                  <strong>Feet:</strong> {distance.feet} ft
-                </p>
-                <p>
-                  <strong>Meters:</strong> {distance.meters} m
-                </p>
-              </div>
-            );
-          })()}
-        </div>
-      )}
-
-      {/* Drag Distance Display */}
-      {dragDistance && (
-        <div className="drag-distance-display">
-          <h3>Drag Distance</h3>
-          <div>
-            <p>
-              <strong>Distance:</strong> {dragDistance.squares} squares
-            </p>
-            <p>
-              <strong>Feet:</strong> {dragDistance.feet} ft
-            </p>
-            <p>
-              <strong>Meters:</strong> {dragDistance.meters} m
-            </p>
+    <>
+      <InitiativeTracker refresh={initiativeRefresh} />
+      <div className="grid-container" onWheel={handleWheel}>
+        {/* Controls */}
+        <div className="grid-controls">
+          <div className="control-group">
+            <label>Grid Size:</label>
+            <input
+              type="number"
+              value={gridSize.width}
+              onChange={(e) =>
+                setGridSize((prev) => ({
+                  ...prev,
+                  width: parseInt(e.target.value) || 20,
+                }))
+              }
+              min="5"
+              max="100"
+            />
+            <span>×</span>
+            <input
+              type="number"
+              value={gridSize.height}
+              onChange={(e) =>
+                setGridSize((prev) => ({
+                  ...prev,
+                  height: parseInt(e.target.value) || 15,
+                }))
+              }
+              min="5"
+              max="100"
+            />
           </div>
-        </div>
-      )}
 
-      {/* Grid with DnD Context */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        modifiers={[snapToGrid]}
-        onDragStart={handleDragStart}
-        onDragMove={handleDragMove}
-        onDragEnd={handleDragEnd}
-      >
-        <div
-          className="grid-area"
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onContextMenu={handleContextMenu}
-        >
-          <div
-            className="grid"
-            style={{ cursor: isDraggingGrid ? "grabbing" : "grab" }}
-          >
-            {renderGrid()}
-            {renderTopNumbers()}
-            {renderLeftLetters()}
-            {renderMeasurementLine()}
-            {renderSpellShape()}
-            {renderMovementRange()}
+          <div className="control-group">
+            <label>Square Size:</label>
+            <input
+              type="number"
+              value={squareSize}
+              onChange={(e) => setSquareSize(parseInt(e.target.value) || 50)}
+              min="20"
+              max="200"
+            />
+            <span>px</span>
+          </div>
 
-            {/* Characters as draggable items */}
-            <SortableContext
-              items={characters.map((char) => char.id_entity.toString())}
-              strategy={rectSortingStrategy}
+          <div className="control-group">
+            <label>Measurement:</label>
+            <select
+              value={measurementUnit}
+              onChange={(e) => setMeasurementUnit(e.target.value)}
             >
-              {characters.map((character) => (
-                <DraggableCharacter
-                  key={character.id_entity}
-                  character={character}
-                  squareSize={squareSize}
-                  gridOffset={gridOffset}
-                  onClick={handleCharacterClick}
-                  measurementMode={measurementMode}
-                />
-              ))}
-            </SortableContext>
+              <option value="feet">Feet</option>
+              <option value="meters">Meters</option>
+            </select>
+            <input
+              type="number"
+              value={unitSize}
+              onChange={(e) => setUnitSize(parseFloat(e.target.value) || 5)}
+              min="1"
+              max="50"
+            />
+            <span>{measurementUnit === "feet" ? "ft" : "m"}</span>
           </div>
-        </div>
 
-        {/* Drag Overlay - This ensures the dragged item follows the cursor exactly */}
-        <DragOverlay>
-          {activeCharacter ? (
-            <div
-              className="character-token dragging-overlay"
-              style={{
-                width: activeCharacter.size * squareSize,
-                height: activeCharacter.size * squareSize,
-                opacity: 0.8,
-                cursor: "grabbing",
+          <div className="control-group">
+            <button
+              className={`measurement-button ${
+                measurementMode ? "active" : ""
+              }`}
+              onClick={() => {
+                setMeasurementMode(!measurementMode);
+                setMeasurementPoints([]);
+                setSpellOrigin(null);
+                setSpellShape("none");
               }}
             >
-              <div className="character-image">
-                {activeCharacter.image ? (
-                  <img src={activeCharacter.image} alt={activeCharacter.name} />
-                ) : (
-                  <div className="character-placeholder">
-                    {activeCharacter.name?.charAt(0)}
-                  </div>
-                )}
+              📏 Measure
+            </button>
+            <button
+              onClick={() => {
+                setMeasurementPoints([]);
+                setSpellOrigin(null);
+                setSpellShape("none");
+              }}
+            >
+              Clear
+            </button>
+          </div>
+
+          {/* Character Management */}
+          <div className="control-group">
+            <button
+              onClick={handleCreateCharacter}
+              className="create-character-button"
+            >
+              ➕ Create Character
+            </button>
+          </div>
+
+          {/* Spell Measurement Controls */}
+          {measurementMode && (
+            <>
+              <div className="control-group">
+                <label>Spell Shape:</label>
+                <select
+                  value={spellShape}
+                  onChange={(e) => setSpellShape(e.target.value)}
+                >
+                  <option value="none">None</option>
+                  <option value="circle">Circle</option>
+                  <option value="square">Square</option>
+                  <option value="cone">Cone</option>
+                  <option value="line">Line</option>
+                </select>
               </div>
-              <div className="character-name">{activeCharacter.name}</div>
+
+              <div className="control-group">
+                <label>Range:</label>
+                <input
+                  type="number"
+                  value={spellRange}
+                  onChange={(e) =>
+                    setSpellRange(parseInt(e.target.value) || 30)
+                  }
+                  min="5"
+                  max="300"
+                />
+                <span>ft</span>
+              </div>
+
+              <div className="control-group">
+                <label>Rotation:</label>
+                <input
+                  type="number"
+                  value={spellRotation}
+                  onChange={(e) =>
+                    setSpellRotation(parseInt(e.target.value) || 0)
+                  }
+                  min="0"
+                  max="359"
+                />
+                <span>°</span>
+              </div>
+
+              <div className="control-group">
+                <small style={{ color: "var(--light-text)" }}>
+                  Mouse wheel:{" "}
+                  {measurementMode ? "Rotate spell" : "Adjust square size"}
+                </small>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Measurement Display */}
+        {measurementPoints.length === 2 && (
+          <div className="measurement-display">
+            <h3>Distance Measurement</h3>
+            {(() => {
+              const distance = calculateDistance(
+                measurementPoints[0],
+                measurementPoints[1]
+              );
+              return (
+                <div>
+                  <p>
+                    <strong>Distance:</strong> {distance.squares} squares
+                  </p>
+                  <p>
+                    <strong>Feet:</strong> {distance.feet} ft
+                  </p>
+                  <p>
+                    <strong>Meters:</strong> {distance.meters} m
+                  </p>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* Drag Distance Display */}
+        {dragDistance && (
+          <div className="drag-distance-display">
+            <h3>Drag Distance</h3>
+            <div>
+              <p>
+                <strong>Distance:</strong> {dragDistance.squares} squares
+              </p>
+              <p>
+                <strong>Feet:</strong> {dragDistance.feet} ft
+              </p>
+              <p>
+                <strong>Meters:</strong> {dragDistance.meters} m
+              </p>
             </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+          </div>
+        )}
 
-      {/* Character Sheet Modal */}
-      {showCharacterSheet && <CharacterSheet />}
+        {/* Grid with DnD Context */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          modifiers={[snapToGrid]}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+        >
+          <div
+            className="grid-area"
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onContextMenu={handleContextMenu}
+          >
+            <div
+              className="grid"
+              style={{ cursor: isDraggingGrid ? "grabbing" : "grab" }}
+            >
+              {renderGrid()}
+              {renderTopNumbers()}
+              {renderLeftLetters()}
+              {renderMeasurementLine()}
+              {renderSpellShape()}
+              {renderMovementRange()}
 
-      {/* Character Editor Modal */}
-      <CharacterEditor
-        isOpen={showCharacterEditor}
-        onClose={() => setShowCharacterEditor(false)}
-        character={editingCharacter}
-        onSave={handleSaveCharacter}
-      />
-    </div>
+              {/* Characters as draggable items */}
+              <SortableContext
+                items={characters.map((char) => char.id_entity.toString())}
+                strategy={rectSortingStrategy}
+              >
+                {characters.map((character) => (
+                  <DraggableCharacter
+                    key={character.id_entity}
+                    character={character}
+                    squareSize={squareSize}
+                    gridOffset={gridOffset}
+                    onClick={handleCharacterClick}
+                    measurementMode={measurementMode}
+                  />
+                ))}
+              </SortableContext>
+            </div>
+          </div>
+
+          {/* Drag Overlay - This ensures the dragged item follows the cursor exactly */}
+          <DragOverlay>
+            {activeCharacter ? (
+              <div
+                className="character-token dragging-overlay"
+                style={{
+                  width: activeCharacter.size * squareSize,
+                  height: activeCharacter.size * squareSize,
+                  opacity: 0.9,
+                  cursor: "grabbing",
+                  position: "fixed",
+                  pointerEvents: "none",
+                  zIndex: 10000,
+                  transform: "none", // Ensure no transform interference
+                }}
+              >
+                <div className="character-image">
+                  {activeCharacter.image ? (
+                    <img
+                      src={activeCharacter.image}
+                      alt={activeCharacter.name}
+                    />
+                  ) : (
+                    <div className="character-placeholder">
+                      {activeCharacter.name?.charAt(0)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+
+        {/* Character Sheet Modal */}
+        {showCharacterSheet && <CharacterSheet />}
+
+        {/* Character Editor Modal */}
+        <CharacterEditor
+          isOpen={showCharacterEditor}
+          onClose={() => setShowCharacterEditor(false)}
+          character={editingCharacter}
+          onSave={handleSaveCharacter}
+        />
+
+        {/* Custom Stats Editor Modal */}
+        {showCustomStatsEditor && <CustomStatsEditor />}
+      </div>
+    </>
   );
 };
 

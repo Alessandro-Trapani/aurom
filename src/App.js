@@ -3,6 +3,7 @@ import "./App.css";
 import DiceRoller from "./DiceRoller";
 import AudioPlayer from "./AudioPlayer";
 import Grid from "./Grid";
+import InitiativeTracker from "./InitiativeTracker";
 
 import Login from "./Login";
 
@@ -41,6 +42,7 @@ function App() {
       <Grid />
       <AudioPlayer />
       <DiceRoller />
+      <InitiativeTracker />
     </>
   );
 }

@@ -28,6 +28,8 @@ const CharacterEditor = ({ isOpen, onClose, character = null, onSave }) => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
 
   // Load character data when editing
   useEffect(() => {
@@ -56,6 +58,14 @@ const CharacterEditor = ({ isOpen, onClose, character = null, onSave }) => {
         charisma: character.charisma || 10,
         status: character.status || "Alive",
       });
+
+      // Set image preview if character has an image
+      if (character.image) {
+        setImagePreview(character.image);
+      } else {
+        setImagePreview("");
+      }
+      setSelectedFile(null);
     } else {
       // Reset to defaults for new character
       setFormData({
@@ -80,6 +90,8 @@ const CharacterEditor = ({ isOpen, onClose, character = null, onSave }) => {
         charisma: 10,
         status: "Alive",
       });
+      setImagePreview("");
+      setSelectedFile(null);
     }
   }, [isOpen, character?.id_entity]);
 
@@ -135,6 +147,42 @@ const CharacterEditor = ({ isOpen, onClose, character = null, onSave }) => {
     }));
   };
 
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        setError("Please select an image file");
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError("Image file size must be less than 5MB");
+        return;
+      }
+
+      setSelectedFile(file);
+      setError("");
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setSelectedFile(null);
+    setImagePreview("");
+    setFormData((prev) => ({
+      ...prev,
+      image: "",
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -146,8 +194,33 @@ const CharacterEditor = ({ isOpen, onClose, character = null, onSave }) => {
         throw new Error("User not logged in");
       }
 
+      let imagePath = formData.image;
+
+      // Handle file upload if a new file was selected
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append("image", selectedFile);
+
+        const uploadResponse = await fetch(
+          "http://localhost:3001/upload-character-image",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json();
+          throw new Error(errorData.error || "Upload failed");
+        }
+
+        const uploadResult = await uploadResponse.json();
+        imagePath = uploadResult.filePath;
+      }
+
       const characterData = {
         ...formData,
+        image: imagePath,
         id_user: user.id_user,
       };
 
@@ -260,15 +333,37 @@ const CharacterEditor = ({ isOpen, onClose, character = null, onSave }) => {
                   <option value="Dead">Dead</option>
                 </select>
               </div>
+            </div>
+
+            <div className="form-row">
               <div className="form-group">
-                <label>Image URL:</label>
-                <input
-                  type="text"
-                  name="image"
-                  value={formData.image}
-                  onChange={handleInputChange}
-                  placeholder="Character image URL"
-                />
+                <label>Character Image:</label>
+                <div className="image-upload-container">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="file-input"
+                    id="character-image"
+                  />
+                  <label htmlFor="character-image" className="file-input-label">
+                    {selectedFile ? selectedFile.name : "Choose an image file"}
+                  </label>
+                  {selectedFile && (
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="remove-image-btn"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {imagePreview && (
+                  <div className="image-preview">
+                    <img src={imagePreview} alt="Character preview" />
+                  </div>
+                )}
               </div>
             </div>
           </div>

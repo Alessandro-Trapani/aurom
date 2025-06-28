@@ -20,16 +20,18 @@ const DraggableCharacter = ({
     });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: isDragging ? CSS.Transform.toString(transform) : "none",
     transition: "none",
     left: character.gridX * squareSize + gridOffset.x,
     top: character.gridY * squareSize + gridOffset.y,
     width: character.size * squareSize,
     height: character.size * squareSize,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 1000 : 1,
+    opacity: isDragging ? 0.3 : 1,
+    zIndex: isDragging ? 1 : 1,
     cursor: isDragging ? "grabbing" : measurementMode ? "crosshair" : "grab",
     position: "absolute",
+    pointerEvents: isDragging ? "none" : "auto",
+    willChange: isDragging ? "transform" : "auto",
   };
 
   const handleMouseEnter = (e) => {
@@ -54,6 +56,9 @@ const DraggableCharacter = ({
     character.maxhp > 0 ? (character.currenthp / character.maxhp) * 100 : 0;
   const hpColor =
     hpPercentage > 50 ? "#4CAF50" : hpPercentage > 25 ? "#FF9800" : "#F44336";
+
+  // Don't render the original token when dragging - only show the overlay
+  if (isDragging) return null;
 
   return (
     <>
@@ -84,7 +89,6 @@ const DraggableCharacter = ({
             </div>
           )}
         </div>
-        <div className="character-name">{character.name}</div>
       </div>
 
       {/* Character Tooltip */}

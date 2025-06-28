@@ -27,6 +27,55 @@ import {
 
 const LOCAL_STORAGE_KEY = "audioPlayerState";
 
+// Sound effects data
+const SOUND_EFFECTS = [
+  { id: "crow", name: "Crow", emoji: "🦅", description: "Crow cawing" },
+  {
+    id: "footsteps",
+    name: "Footsteps",
+    emoji: "👣",
+    description: "Walking footsteps",
+  },
+  { id: "thunder", name: "Thunder", emoji: "⚡", description: "Thunder crash" },
+  { id: "fire", name: "Fire", emoji: "🔥", description: "Crackling fire" },
+  { id: "sword", name: "Sword", emoji: "⚔️", description: "Sword clash" },
+  { id: "magic", name: "Magic", emoji: "✨", description: "Magic spell" },
+  { id: "door", name: "Door", emoji: "🚪", description: "Door creak" },
+  { id: "water", name: "Water", emoji: "💧", description: "Water splash" },
+  { id: "wind", name: "Wind", emoji: "💨", description: "Howling wind" },
+  { id: "bell", name: "Bell", emoji: "🔔", description: "Bell toll" },
+];
+
+// Function to generate a random dark color
+const generateRandomDarkColor = () => {
+  // Generate very dark colors (values 5-40 for RGB - much darker)
+  const r = Math.floor(Math.random() * 35) + 5;
+  const g = Math.floor(Math.random() * 35) + 5;
+  const b = Math.floor(Math.random() * 35) + 5;
+  return `#${r.toString(16).padStart(2, "0")}${g
+    .toString(16)
+    .padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+};
+
+// Custom muted dark colors for audio entries (fallback)
+const ENTRY_COLORS = [
+  "#1a1a1a", // Very dark gray
+  "#1f1f1f", // Slightly lighter dark gray
+  "#242424", // Dark gray
+  "#292929", // Medium dark gray
+  "#2e2e2e", // Another dark gray variant
+  "#333333", // Dark gray
+  "#383838", // Slightly lighter
+  "#3d3d3d", // Another variant
+  "#424242", // Medium gray
+  "#474747", // Another medium gray
+  "#4c4c4c", // Slightly lighter gray
+  "#515151", // Another variant
+  "#565656", // Medium gray
+  "#5b5b5b", // Another variant
+  "#606060", // Slightly lighter
+];
+
 // SortableItem component for individual audio items
 const SortableItem = ({
   video,
@@ -40,6 +89,8 @@ const SortableItem = ({
   handleSeekChange,
   handleSeekStart,
   handleSeekEnd,
+  index, // Add index prop
+  trackColors, // Add trackColors prop
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: video.id });
@@ -47,6 +98,8 @@ const SortableItem = ({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    backgroundColor:
+      trackColors[video.id] || ENTRY_COLORS[index % ENTRY_COLORS.length], // Use stored color or fallback
   };
 
   return (
@@ -142,7 +195,7 @@ const AudioPlayer = () => {
     try {
       const serializedState = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (serializedState === null) {
-        return { videos: [], videoProgress: {} };
+        return { videos: [], videoProgress: {}, trackColors: {} };
       }
       const loadedState = JSON.parse(serializedState);
       return {
@@ -152,10 +205,15 @@ const AudioPlayer = () => {
           loadedState.videoProgress !== null
             ? loadedState.videoProgress
             : {},
+        trackColors:
+          typeof loadedState.trackColors === "object" &&
+          loadedState.trackColors !== null
+            ? loadedState.trackColors
+            : {},
       };
     } catch (error) {
       console.error("Error loading state from local storage:", error);
-      return { videos: [], videoProgress: {} };
+      return { videos: [], videoProgress: {}, trackColors: {} };
     }
   }, []);
 
@@ -169,12 +227,68 @@ const AudioPlayer = () => {
   const [nowPlaying, setNowPlaying] = useState([]);
   const [ytReady, setYtReady] = useState(false);
   const [videoProgress, setVideoProgress] = useState(initialLoad.videoProgress);
+  const [trackColors, setTrackColors] = useState(initialLoad.trackColors);
   const [isSeeking, setIsSeeking] = useState(false);
   const progressIntervals = useRef({});
-
   const [playerElements, setPlayerElements] = useState(
     initialLoad.videos.map((v) => v.id)
   );
+  const [customSounds, setCustomSounds] = useState({});
+  const [soundEffectVolume, setSoundEffectVolume] = useState(50); // Volume for sound effects (0-100)
+  const [currentlyPlayingSound, setCurrentlyPlayingSound] = useState(null); // Track currently playing sound
+  const soundEffectAudio = useRef(null); // Reference to current sound effect audio
+
+  // Load custom sounds from localStorage
+  useEffect(() => {
+    const savedCustomSounds = localStorage.getItem("customSoundEffects");
+    const savedVolume = localStorage.getItem("soundEffectVolume");
+    if (savedCustomSounds) {
+      try {
+        setCustomSounds(JSON.parse(savedCustomSounds));
+      } catch (error) {
+        console.error("Error loading custom sounds:", error);
+      }
+    }
+    if (savedVolume) {
+      setSoundEffectVolume(parseInt(savedVolume));
+    }
+  }, []);
+
+  // Save custom sounds to localStorage
+  const saveCustomSound = (effectId, audioBlob) => {
+    const url = URL.createObjectURL(audioBlob);
+    const newCustomSounds = { ...customSounds, [effectId]: url };
+    setCustomSounds(newCustomSounds);
+    localStorage.setItem("customSoundEffects", JSON.stringify(newCustomSounds));
+  };
+
+  // Save volume to localStorage
+  useEffect(() => {
+    localStorage.setItem("soundEffectVolume", soundEffectVolume.toString());
+  }, [soundEffectVolume]);
+
+  // Stop currently playing sound effect
+  const stopSoundEffect = () => {
+    if (soundEffectAudio.current) {
+      soundEffectAudio.current.pause();
+      soundEffectAudio.current.currentTime = 0;
+      soundEffectAudio.current = null;
+    }
+    setCurrentlyPlayingSound(null);
+  };
+
+  // Update volume of currently playing sound effect
+  const updateSoundEffectVolume = (newVolume) => {
+    if (soundEffectAudio.current) {
+      soundEffectAudio.current.volume = newVolume / 100;
+    }
+  };
+
+  // Handle volume change
+  const handleVolumeChange = (newVolume) => {
+    setSoundEffectVolume(newVolume);
+    updateSoundEffectVolume(newVolume);
+  };
 
   // dnd-kit sensors
   const sensors = useSensors(
@@ -208,12 +322,13 @@ const AudioPlayer = () => {
       const stateToSave = {
         videos: videos,
         videoProgress: videoProgress,
+        trackColors: trackColors,
       };
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
     } catch (error) {
       console.error("Error saving state to local storage:", error);
     }
-  }, [videos, videoProgress]);
+  }, [videos, videoProgress, trackColors]);
 
   const createPlayer = useCallback(
     (video) => {
@@ -266,6 +381,19 @@ const AudioPlayer = () => {
                 event.data === window.YT.PlayerState.ENDED
               ) {
                 setNowPlaying((prev) => prev.filter((id) => id !== video.id));
+
+                // Auto-restart when the video ends
+                if (event.data === window.YT.PlayerState.ENDED) {
+                  setTimeout(() => {
+                    if (
+                      event.target &&
+                      typeof event.target.seekTo === "function"
+                    ) {
+                      event.target.seekTo(0, true);
+                      event.target.playVideo();
+                    }
+                  }, 1000); // Small delay before restarting
+                }
               }
             },
           },
@@ -381,6 +509,10 @@ const AudioPlayer = () => {
       console.warn("This audio is already in your playlist");
       return;
     }
+
+    // Generate a random dark color for this track
+    const newColor = generateRandomDarkColor();
+
     const newVideo = {
       id,
       title: titleInput.trim() || `YouTube Audio ${id}`,
@@ -391,6 +523,10 @@ const AudioPlayer = () => {
     setVideoProgress((prev) => ({
       ...prev,
       [newVideo.id]: { currentTime: 0, duration: 0 },
+    }));
+    setTrackColors((prev) => ({
+      ...prev,
+      [newVideo.id]: newColor,
     }));
     setInput("");
     setTitleInput("");
@@ -403,6 +539,11 @@ const AudioPlayer = () => {
       const newProgress = { ...prev };
       delete newProgress[id];
       return newProgress;
+    });
+    setTrackColors((prev) => {
+      const newColors = { ...prev };
+      delete newColors[id];
+      return newColors;
     });
 
     if (
@@ -535,6 +676,216 @@ const AudioPlayer = () => {
     }
   };
 
+  // Sound effects functionality
+  const playSoundEffect = (effectId) => {
+    // Stop any currently playing sound effect
+    stopSoundEffect();
+
+    // Priority order: Custom sounds > Local files > Online files > Generated sounds
+
+    // Check for custom sound first
+    if (customSounds[effectId]) {
+      const audio = new Audio(customSounds[effectId]);
+      audio.volume = soundEffectVolume / 100; // Convert percentage to 0-1 range
+      soundEffectAudio.current = audio;
+      setCurrentlyPlayingSound(effectId);
+
+      audio.play().catch((error) => {
+        console.log("Custom sound failed, trying fallback:", error);
+        playFallbackSound(effectId);
+      });
+
+      // Clear the currently playing sound when it ends
+      audio.onended = () => {
+        setCurrentlyPlayingSound(null);
+        soundEffectAudio.current = null;
+      };
+      return;
+    }
+
+    // Map effect IDs to sound file paths
+    const soundFiles = {
+      crow: "/sounds/crow.mp3",
+      footsteps: "/sounds/footsteps.mp3",
+      thunder: "/sounds/thunder.mp3",
+      fire: "/sounds/fire.mp3",
+      sword: "/sounds/sword.mp3",
+      magic: "/sounds/magic.mp3",
+      door: "/sounds/door.mp3",
+      water: "/sounds/water.mp3",
+      wind: "/sounds/wind.mp3",
+      bell: "/sounds/bell.mp3",
+    };
+
+    // Alternative: Use online sound effect URLs
+    const onlineSoundFiles = {
+      crow: "https://www.soundjay.com/misc/sounds/crow-1.mp3",
+      footsteps: "https://www.soundjay.com/misc/sounds/footsteps-1.mp3",
+      thunder: "https://www.soundjay.com/misc/sounds/thunder-1.mp3",
+      fire: "https://www.soundjay.com/misc/sounds/fire-1.mp3",
+      sword: "https://www.soundjay.com/misc/sounds/sword-1.mp3",
+      magic: "https://www.soundjay.com/misc/sounds/magic-1.mp3",
+      door: "https://www.soundjay.com/misc/sounds/door-1.mp3",
+      water: "https://www.soundjay.com/misc/sounds/water-1.mp3",
+      wind: "https://www.soundjay.com/misc/sounds/wind-1.mp3",
+      bell: "https://www.soundjay.com/misc/sounds/bell-1.mp3",
+    };
+
+    // Try local files first, then online files, then generated sounds
+    const soundFile = soundFiles[effectId] || onlineSoundFiles[effectId];
+
+    if (soundFile) {
+      const audio = new Audio();
+      audio.src = soundFile;
+      audio.volume = soundEffectVolume / 100; // Convert percentage to 0-1 range
+      soundEffectAudio.current = audio;
+      setCurrentlyPlayingSound(effectId);
+
+      // Try to play the sound file
+      audio.play().catch((error) => {
+        console.log("Sound file not found, using generated sound:", error);
+        // Fallback to generated sound if file doesn't exist
+        playGeneratedSound(effectId);
+      });
+
+      // Clear the currently playing sound when it ends
+      audio.onended = () => {
+        setCurrentlyPlayingSound(null);
+        soundEffectAudio.current = null;
+      };
+    } else {
+      // Fallback to generated sound
+      playGeneratedSound(effectId);
+    }
+  };
+
+  // Fallback function for generated sounds
+  const playFallbackSound = (effectId) => {
+    // Try local/online files, then generated sounds
+    playSoundEffect(effectId);
+  };
+
+  // Generated sound effects using Web Audio API
+  const playGeneratedSound = (effectId) => {
+    const audioContext = new (window.AudioContext ||
+      window.webkitAudioContext)();
+
+    // Create a simple sound effect based on the type
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    // Set volume based on slider (convert percentage to 0-1 range)
+    const volumeLevel = soundEffectVolume / 100;
+
+    // Different sound effects based on type
+    switch (effectId) {
+      case "crow":
+        oscillator.type = "sawtooth";
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(
+          100,
+          audioContext.currentTime + 0.5
+        );
+        break;
+      case "footsteps":
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(80, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(
+          60,
+          audioContext.currentTime + 0.1
+        );
+        break;
+      case "thunder":
+        oscillator.type = "sawtooth";
+        oscillator.frequency.setValueAtTime(50, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(
+          30,
+          audioContext.currentTime + 1
+        );
+        break;
+      case "fire":
+        oscillator.type = "square";
+        oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(
+          120,
+          audioContext.currentTime + 0.3
+        );
+        break;
+      case "sword":
+        oscillator.type = "triangle";
+        oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(
+          200,
+          audioContext.currentTime + 0.2
+        );
+        break;
+      case "magic":
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(
+          600,
+          audioContext.currentTime + 0.5
+        );
+        break;
+      case "door":
+        oscillator.type = "sawtooth";
+        oscillator.frequency.setValueAtTime(100, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(
+          80,
+          audioContext.currentTime + 0.8
+        );
+        break;
+      case "water":
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(
+          150,
+          audioContext.currentTime + 0.4
+        );
+        break;
+      case "wind":
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(
+          250,
+          audioContext.currentTime + 0.6
+        );
+        break;
+      case "bell":
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(
+          600,
+          audioContext.currentTime + 0.3
+        );
+        break;
+      default:
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+    }
+
+    // Set volume envelope with user-controlled volume
+    gainNode.gain.setValueAtTime(0.3 * volumeLevel, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(
+      0.01 * volumeLevel,
+      audioContext.currentTime + 0.5
+    );
+
+    // Track currently playing sound
+    setCurrentlyPlayingSound(effectId);
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.5);
+
+    // Clear the currently playing sound when it ends
+    setTimeout(() => {
+      setCurrentlyPlayingSound(null);
+    }, 500);
+  };
+
   return (
     <>
       <button
@@ -554,6 +905,62 @@ const AudioPlayer = () => {
 
       {visible && (
         <div className="audio-overlay" onClick={handleCloseModal}>
+          {/* Sound Effects Panel */}
+          <div
+            className="sound-effects-panel"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>Sound Effects</h3>
+
+            {/* Volume Control */}
+            <div className="sound-effects-volume">
+              <label htmlFor="sound-volume">Volume: {soundEffectVolume}%</label>
+              <input
+                type="range"
+                id="sound-volume"
+                min="0"
+                max="100"
+                value={soundEffectVolume}
+                onChange={(e) => handleVolumeChange(parseInt(e.target.value))}
+                className="volume-slider"
+              />
+            </div>
+
+            {/* Stop Button */}
+            {currentlyPlayingSound && (
+              <div className="sound-effects-stop">
+                <button
+                  onClick={stopSoundEffect}
+                  className="stop-sound-btn"
+                  title="Stop current sound effect"
+                >
+                  ⏹ Stop{" "}
+                  {
+                    SOUND_EFFECTS.find((e) => e.id === currentlyPlayingSound)
+                      ?.name
+                  }
+                </button>
+              </div>
+            )}
+
+            <div className="sound-effects-grid">
+              {SOUND_EFFECTS.map((effect) => (
+                <button
+                  key={effect.id}
+                  className={`sound-effect-btn ${
+                    currentlyPlayingSound === effect.id ? "playing" : ""
+                  }`}
+                  onClick={() => playSoundEffect(effect.id)}
+                  title={effect.description}
+                  aria-label={effect.description}
+                >
+                  <span className="sound-effect-emoji">{effect.emoji}</span>
+                  <span className="sound-effect-name">{effect.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="audio-modal" onClick={(e) => e.stopPropagation()}>
             <div className="input-group">
               <input
@@ -596,7 +1003,7 @@ const AudioPlayer = () => {
                       items={videos.map((video) => video.id)}
                       strategy={verticalListSortingStrategy}
                     >
-                      {videos.map((video) => (
+                      {videos.map((video, index) => (
                         <SortableItem
                           key={video.id}
                           video={video}
@@ -610,6 +1017,8 @@ const AudioPlayer = () => {
                           handleSeekChange={handleSeekChange}
                           handleSeekStart={handleSeekStart}
                           handleSeekEnd={handleSeekEnd}
+                          index={index}
+                          trackColors={trackColors}
                         />
                       ))}
                     </SortableContext>
