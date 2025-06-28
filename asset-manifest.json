@@ -1,0 +1,22 @@
+{
+  "files": {
+    "main.css": "/aurom/static/css/main.ff8133d4.css",
+    "main.js": "/aurom/static/js/main.eb7b5ef3.js",
+    "static/js/453.2751b619.chunk.js": "/aurom/static/js/453.2751b619.chunk.js",
+    "static/media/martin.jpg": "/aurom/static/media/martin.ba4590d9833a84bd9065.jpg",
+    "static/media/eredin.jpg": "/aurom/static/media/eredin.3642be1aca4b574b18a1.jpg",
+    "static/media/nauru.jpg": "/aurom/static/media/nauru.9dcb91b785a7f7d44bb0.jpg",
+    "static/media/hardek.jpg": "/aurom/static/media/hardek.360c1c9a06cb6ad924b7.jpg",
+    "static/media/guitar.png": "/aurom/static/media/guitar.f31eeab8af40b58df257.png",
+    "static/media/cross-swords.png": "/aurom/static/media/cross-swords.ef6e96e1bd87716cdfe4.png",
+    "static/media/lexias.jpg": "/aurom/static/media/lexias.a809090fc31a67ad2a82.jpg",
+    "index.html": "/aurom/index.html",
+    "main.ff8133d4.css.map": "/aurom/static/css/main.ff8133d4.css.map",
+    "main.eb7b5ef3.js.map": "/aurom/static/js/main.eb7b5ef3.js.map",
+    "453.2751b619.chunk.js.map": "/aurom/static/js/453.2751b619.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.ff8133d4.css",
+    "static/js/main.eb7b5ef3.js"
+  ]
+}
