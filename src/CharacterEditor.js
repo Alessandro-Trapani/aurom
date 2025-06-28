@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { supabase } from "./supabaseClient";
+import {
+  supabase,
+  uploadCharacterImage,
+  deleteCharacterImage,
+} from "./supabaseClient";
 import "./CharacterEditor.css";
 
 const CharacterEditor = ({ isOpen, onClose, character = null, onSave }) => {
@@ -46,7 +50,7 @@ const CharacterEditor = ({ isOpen, onClose, character = null, onSave }) => {
         currenthp: character.currenthp || 65,
         speed: character.speed || 30,
         notes: character.notes || "",
-        image: character.image || "",
+        image: character.image_url || "",
         ismain: character.ismain || false,
         inbench: character.inbench || false,
         initiativebonus: character.initiativebonus || 2,
@@ -60,8 +64,8 @@ const CharacterEditor = ({ isOpen, onClose, character = null, onSave }) => {
       });
 
       // Set image preview if character has an image
-      if (character.image) {
-        setImagePreview(character.image);
+      if (character.image_url) {
+        setImagePreview(character.image_url);
       } else {
         setImagePreview("");
       }
@@ -194,33 +198,34 @@ const CharacterEditor = ({ isOpen, onClose, character = null, onSave }) => {
         throw new Error("User not logged in");
       }
 
-      let imagePath = formData.image;
+      let imageUrl = formData.image;
 
       // Handle file upload if a new file was selected
       if (selectedFile) {
-        const formData = new FormData();
-        formData.append("image", selectedFile);
-
-        const uploadResponse = await fetch(
-          "http://localhost:3001/upload-character-image",
-          {
-            method: "POST",
-            body: formData,
+        try {
+          // If editing an existing character, delete the old image first
+          if (character && character.id_entity) {
+            try {
+              await deleteCharacterImage(character.id_entity);
+            } catch (error) {
+              console.warn("Could not delete old image:", error);
+            }
           }
-        );
 
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json();
-          throw new Error(errorData.error || "Upload failed");
+          // Upload new image to Supabase storage
+          imageUrl = await uploadCharacterImage(
+            selectedFile,
+            character ? character.id_entity : null
+          );
+        } catch (uploadError) {
+          console.error("Error uploading image:", uploadError);
+          throw new Error("Failed to upload image. Please try again.");
         }
-
-        const uploadResult = await uploadResponse.json();
-        imagePath = uploadResult.filePath;
       }
 
       const characterData = {
         ...formData,
-        image: imagePath,
+        image_url: imageUrl,
         id_user: user.id_user,
       };
 
@@ -251,6 +256,27 @@ const CharacterEditor = ({ isOpen, onClose, character = null, onSave }) => {
 
         if (error) throw error;
         result = data[0];
+
+        // If we uploaded an image for a new character, update the image URL with the actual character ID
+        if (selectedFile && result.id_entity) {
+          try {
+            const finalImageUrl = await uploadCharacterImage(
+              selectedFile,
+              result.id_entity
+            );
+            await supabase
+              .from("entity")
+              .update({ image_url: finalImageUrl })
+              .eq("id_entity", result.id_entity);
+            result.image_url = finalImageUrl;
+          } catch (error) {
+            console.warn(
+              "Could not update image URL with character ID:",
+              error
+            );
+          }
+        }
+
         console.log("Created character result:", result);
       }
 

@@ -81,8 +81,8 @@ const DraggableCharacter = ({
         onMouseMove={handleMouseMove}
       >
         <div className="character-image">
-          {character.image ? (
-            <img src={character.image} alt={character.name} />
+          {character.image_url ? (
+            <img src={character.image_url} alt={character.name} />
           ) : (
             <div className="character-placeholder">
               {character.name?.charAt(0)}

@@ -14,7 +14,7 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { createSnapModifier } from "@dnd-kit/modifiers";
-import { supabase } from "./supabaseClient";
+import { supabase, getCharacterImageUrl } from "./supabaseClient";
 import DraggableCharacter from "./DraggableCharacter";
 import CharacterEditor from "./CharacterEditor";
 import "./Grid.css";
@@ -94,34 +94,50 @@ const Grid = () => {
 
       console.log("Raw character data from database:", data);
 
-      // Initialize characters with grid positions
-      const charactersWithPositions = data.map((char) => {
-        // Use the exact database positions, defaulting to 0 if null/undefined
-        // Ensure positions are valid numbers
-        let gridX = 0;
-        let gridY = 0;
+      // Fetch image URLs and initialize characters with grid positions
+      const charactersWithPositions = await Promise.all(
+        data.map(async (char) => {
+          // Use the exact database positions, defaulting to 0 if null/undefined
+          // Ensure positions are valid numbers
+          let gridX = 0;
+          let gridY = 0;
 
-        if (char.positionx !== null && char.positionx !== undefined) {
-          gridX = Number(char.positionx);
-          if (isNaN(gridX)) gridX = 0;
-        }
+          if (char.positionx !== null && char.positionx !== undefined) {
+            gridX = Number(char.positionx);
+            if (isNaN(gridX)) gridX = 0;
+          }
 
-        if (char.positiony !== null && char.positiony !== undefined) {
-          gridY = Number(char.positiony);
-          if (isNaN(gridY)) gridY = 0;
-        }
+          if (char.positiony !== null && char.positiony !== undefined) {
+            gridY = Number(char.positiony);
+            if (isNaN(gridY)) gridY = 0;
+          }
 
-        console.log(
-          `Character ${char.name}: DB position (${char.positionx}, ${char.positiony}) -> Grid position (${gridX}, ${gridY})`
-        );
+          console.log(
+            `Character ${char.name}: DB position (${char.positionx}, ${char.positiony}) -> Grid position (${gridX}, ${gridY})`
+          );
 
-        return {
-          ...char,
-          gridX,
-          gridY,
-          size: char.size || 1,
-        };
-      });
+          // Fetch image URL from Supabase storage
+          let imageUrl = char.image_url;
+          if (!imageUrl) {
+            try {
+              imageUrl = await getCharacterImageUrl(char.id_entity);
+            } catch (error) {
+              console.error(
+                `Error fetching image for character ${char.id_entity}:`,
+                error
+              );
+            }
+          }
+
+          return {
+            ...char,
+            gridX,
+            gridY,
+            size: char.size || 1,
+            image_url: imageUrl,
+          };
+        })
+      );
 
       console.log("Final characters with positions:", charactersWithPositions);
       setCharacters(charactersWithPositions);

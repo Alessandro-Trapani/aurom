@@ -14,7 +14,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { supabase } from "./supabaseClient";
+import { supabase, getCharacterImageUrl } from "./supabaseClient";
 import "./InitiativeTracker.css";
 
 // Import the cross-swords image
@@ -51,12 +51,31 @@ const InitiativeTracker = ({ refresh }) => {
         return;
       }
 
-      console.log("InitiativeTracker loaded characters:", data);
-      setCharacters(data || []);
+      // Fetch image URLs for each character
+      const charactersWithImages = await Promise.all(
+        data.map(async (char) => {
+          try {
+            const imageUrl = await getCharacterImageUrl(char.id_entity);
+            return {
+              ...char,
+              image_url: imageUrl,
+            };
+          } catch (error) {
+            console.error(
+              `Error fetching image for character ${char.id_entity}:`,
+              error
+            );
+            return char;
+          }
+        })
+      );
+
+      console.log("InitiativeTracker loaded characters:", charactersWithImages);
+      setCharacters(charactersWithImages || []);
 
       // Initialize initiative values from database or default to 0
       const initialInitiatives = {};
-      data.forEach((char) => {
+      charactersWithImages.forEach((char) => {
         // Use initiativescore from database if it exists, otherwise default to 0
         initialInitiatives[char.id_entity] = char.initiativescore || 0;
       });
@@ -124,18 +143,6 @@ const InitiativeTracker = ({ refresh }) => {
     for (const char of characters) {
       await rollInitiative(char.id_entity);
     }
-  };
-
-  const handleInitiativeChange = (id, value) => {
-    // Only update if the value is actually different
-    const numValue = value === "" ? 0 : parseInt(value) || 0;
-    setInitiativeValues((prev) => {
-      if (prev[id] === numValue) return prev; // Don't update if same value
-      return {
-        ...prev,
-        [id]: numValue,
-      };
-    });
   };
 
   const orderByInitiative = () => {
@@ -214,12 +221,13 @@ const InitiativeTracker = ({ refresh }) => {
 
     // Update local value when initiativeValues changes
     useEffect(() => {
+      const characterId = char.id_entity;
       setLocalValue(
-        initiativeValues[char.id_entity] === 0
+        initiativeValues[characterId] === 0
           ? ""
-          : initiativeValues[char.id_entity] || ""
+          : initiativeValues[characterId] || ""
       );
-    }, [initiativeValues[char.id_entity]]);
+    }, [char.id_entity, initiativeValues]);
 
     const handleLocalChange = (value) => {
       setLocalValue(value);
@@ -238,17 +246,6 @@ const InitiativeTracker = ({ refresh }) => {
       await saveInitiativeToDatabase(char.id_entity, numValue);
     };
 
-    // Get character image
-    const getCharacterImage = (charId) => {
-      try {
-        return require(`./assets/characters/${charId.toLowerCase()}.jpg`);
-      } catch (err) {
-        return null;
-      }
-    };
-
-    const characterImageUrl = getCharacterImage(char.id_entity);
-
     return (
       <div
         ref={setNodeRef}
@@ -265,8 +262,8 @@ const InitiativeTracker = ({ refresh }) => {
           </div>
 
           <div className="character-image">
-            {characterImageUrl ? (
-              <img src={characterImageUrl} alt={char.name} />
+            {char.image_url ? (
+              <img src={char.image_url} alt={char.name} />
             ) : (
               <div className="placeholder-image">?</div>
             )}
