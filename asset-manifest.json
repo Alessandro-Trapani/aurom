@@ -1,17 +1,27 @@
 {
   "files": {
     "main.css": "/aurom/static/css/main.ff8133d4.css",
-    "main.js": "/aurom/static/js/main.610e7dc8.js",
+    "main.js": "/aurom/static/js/main.0bffb125.js",
     "static/js/453.2751b619.chunk.js": "/aurom/static/js/453.2751b619.chunk.js",
+    "static/media/Footsteps.mp3": "/aurom/static/media/Footsteps.3f9809ab12c1ca7479bd.mp3",
+    "static/media/Fire.mp3": "/aurom/static/media/Fire.df5ed3aea3792e6470b1.mp3",
+    "static/media/Magic.mp3": "/aurom/static/media/Magic.b35da7b2d98dd1c23999.mp3",
+    "static/media/Thunder.mp3": "/aurom/static/media/Thunder.a93cccac005618656ba6.mp3",
+    "static/media/Wind.mp3": "/aurom/static/media/Wind.d3617a7ef4edaf204259.mp3",
+    "static/media/Water.mp3": "/aurom/static/media/Water.e5ce005e58c3afa37d8b.mp3",
+    "static/media/Door.mp3": "/aurom/static/media/Door.a5475bcd86fd30baea94.mp3",
+    "static/media/Bell.mp3": "/aurom/static/media/Bell.7a494cd51f951a473937.mp3",
+    "static/media/Crow.mp3": "/aurom/static/media/Crow.bfe473b4c81a2f780442.mp3",
     "static/media/guitar.png": "/aurom/static/media/guitar.f31eeab8af40b58df257.png",
+    "static/media/Sword.mp3": "/aurom/static/media/Sword.3a2f905d339cf8fc44ec.mp3",
     "static/media/cross-swords.png": "/aurom/static/media/cross-swords.ef6e96e1bd87716cdfe4.png",
     "index.html": "/aurom/index.html",
     "main.ff8133d4.css.map": "/aurom/static/css/main.ff8133d4.css.map",
-    "main.610e7dc8.js.map": "/aurom/static/js/main.610e7dc8.js.map",
+    "main.0bffb125.js.map": "/aurom/static/js/main.0bffb125.js.map",
     "453.2751b619.chunk.js.map": "/aurom/static/js/453.2751b619.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.ff8133d4.css",
-    "static/js/main.610e7dc8.js"
+    "static/js/main.0bffb125.js"
   ]
 }
