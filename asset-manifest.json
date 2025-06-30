@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/aurom/static/css/main.ff8133d4.css",
-    "main.js": "/aurom/static/js/main.0bffb125.js",
+    "main.css": "/aurom/static/css/main.b229fea7.css",
+    "main.js": "/aurom/static/js/main.44953c1e.js",
     "static/js/453.2751b619.chunk.js": "/aurom/static/js/453.2751b619.chunk.js",
     "static/media/Footsteps.mp3": "/aurom/static/media/Footsteps.3f9809ab12c1ca7479bd.mp3",
     "static/media/Fire.mp3": "/aurom/static/media/Fire.df5ed3aea3792e6470b1.mp3",
@@ -16,12 +16,12 @@
     "static/media/Sword.mp3": "/aurom/static/media/Sword.3a2f905d339cf8fc44ec.mp3",
     "static/media/cross-swords.png": "/aurom/static/media/cross-swords.ef6e96e1bd87716cdfe4.png",
     "index.html": "/aurom/index.html",
-    "main.ff8133d4.css.map": "/aurom/static/css/main.ff8133d4.css.map",
-    "main.0bffb125.js.map": "/aurom/static/js/main.0bffb125.js.map",
+    "main.b229fea7.css.map": "/aurom/static/css/main.b229fea7.css.map",
+    "main.44953c1e.js.map": "/aurom/static/js/main.44953c1e.js.map",
     "453.2751b619.chunk.js.map": "/aurom/static/js/453.2751b619.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.ff8133d4.css",
-    "static/js/main.0bffb125.js"
+    "static/css/main.b229fea7.css",
+    "static/js/main.44953c1e.js"
   ]
 }
